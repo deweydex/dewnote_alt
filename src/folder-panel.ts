@@ -16,6 +16,7 @@ import { todayVersion } from "./dialect.ts";
 
 export interface FolderPanel {
   choose(): Promise<boolean>;
+  reset(): void;
   destroy(): void;
 }
 
@@ -451,6 +452,20 @@ id: ${id}-first-cell
 
   return {
     choose,
+    reset() {
+      files = [];
+      folderName = "";
+      currentRoot = null;
+      openedPath = null;
+      openButton.textContent = "Open folder…";
+      refreshButton.disabled = true;
+      tutorialCreateButton.disabled = true;
+      tutorialCreateButton.title = "Open a folder first.";
+      status.textContent = "";
+      tutorialStatus.textContent = "";
+      renderFiles();
+      if (!panel.hidden) closeButton.click();
+    },
     destroy() {
       toggle.remove();
       panel.remove();

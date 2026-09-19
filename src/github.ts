@@ -236,6 +236,49 @@ async function branchSha(repo: RepoRef, branch: string, token: string): Promise<
   return data.object.sha;
 }
 
+export async function branchExists(repo: RepoRef, branch: string, token: string): Promise<boolean> {
+  return (await branchSha(repo, branch, token)) !== null;
+}
+
+export interface RepositoryChange {
+  path: string;
+  status: "added" | "modified" | "removed" | "renamed" | string;
+  additions: number;
+  deletions: number;
+  previousPath?: string;
+}
+
+/** GitHub, rather than the current browser session, is authoritative for
+ * what will enter a pull request. A missing working branch simply has no
+ * changes yet; any other failure remains visible to the caller. */
+export async function compareBranches(
+  repo: RepoRef,
+  base: string,
+  head: string,
+  token: string,
+): Promise<RepositoryChange[]> {
+  const response = await api(
+    token,
+    "GET",
+    `/repos/${repo.owner}/${repo.repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
+  );
+  if (response.status === 404) return [];
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new GithubApiError(response.status, `Compare ${base}...${head} → ${response.status}: ${detail.slice(0, 300)}`);
+  }
+  const data = (await response.json()) as {
+    files?: { filename: string; status: string; additions: number; deletions: number; previous_filename?: string }[];
+  };
+  return (data.files ?? []).map((file) => ({
+    path: file.filename,
+    status: file.status,
+    additions: file.additions,
+    deletions: file.deletions,
+    ...(file.previous_filename ? { previousPath: file.previous_filename } : {}),
+  }));
+}
+
 /** Creates `branch` from `base`'s current tip if it doesn't already
  * exist. Never writes to `base` directly — decision 5.7 and the plan's
  * step 5 both put a working branch, not the default branch, as the save
@@ -254,6 +297,91 @@ export async function ensureBranch(repo: RepoRef, branch: string, base: string, 
 
 export interface PutFileResult {
   sha: string;
+}
+
+export interface AtomicFileChange {
+  path: string;
+  content: string | Uint8Array;
+  /** The blob expected on the branch, or null when the path must not
+   * exist. This makes a multi-file save obey the same no-overwrite rule
+   * as the Contents API's single-file write. */
+  expectedSha: string | null;
+}
+
+export interface AtomicCommitResult {
+  commitSha: string;
+  blobs: Record<string, string>;
+}
+
+async function fileShaAt(repo: RepoRef, path: string, ref: string, token: string): Promise<string | null> {
+  const response = await api(
+    token,
+    "GET",
+    `/repos/${repo.owner}/${repo.repo}/contents/${path}?ref=${encodeURIComponent(ref)}`,
+  );
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new GithubApiError(response.status, `GET ${path} at ${ref} → ${response.status}: ${detail.slice(0, 300)}`);
+  }
+  return ((await response.json()) as { sha: string }).sha;
+}
+
+/** Commit several files as one Git object transaction. All expected
+ * paths are checked first, then one tree and one commit are created and
+ * the branch ref advances only if it has not moved. A release therefore
+ * cannot expose its frozen copy without its new live file, or vice versa. */
+export async function commitFilesAtomically(
+  repo: RepoRef,
+  branch: string,
+  base: string,
+  changes: readonly AtomicFileChange[],
+  message: string,
+  token: string,
+): Promise<AtomicCommitResult> {
+  if (changes.length === 0) throw new Error("An atomic commit needs at least one file.");
+  await ensureBranch(repo, branch, base, token);
+  const head = await branchSha(repo, branch, token);
+  if (!head) throw new GithubApiError(404, `Working branch "${branch}" not found`);
+
+  for (const change of changes) {
+    const actual = await fileShaAt(repo, change.path, branch, token);
+    if (actual !== change.expectedSha) {
+      throw new GithubApiError(409, `${change.path} changed on ${branch}; reload before saving.`);
+    }
+  }
+
+  const commit = await apiJson<{ tree: { sha: string } }>(
+    token,
+    "GET",
+    `/repos/${repo.owner}/${repo.repo}/git/commits/${encodeURIComponent(head)}`,
+  );
+  const blobs: Record<string, string> = {};
+  for (const change of changes) {
+    const blob = await apiJson<{ sha: string }>(token, "POST", `/repos/${repo.owner}/${repo.repo}/git/blobs`, {
+      content: typeof change.content === "string" ? toBase64(change.content) : bytesToBase64(change.content),
+      encoding: "base64",
+    });
+    blobs[change.path] = blob.sha;
+  }
+  const tree = await apiJson<{ sha: string }>(token, "POST", `/repos/${repo.owner}/${repo.repo}/git/trees`, {
+    base_tree: commit.tree.sha,
+    tree: changes.map((change) => ({ path: change.path, mode: "100644", type: "blob", sha: blobs[change.path] })),
+  });
+  const created = await apiJson<{ sha: string }>(token, "POST", `/repos/${repo.owner}/${repo.repo}/git/commits`, {
+    message,
+    tree: tree.sha,
+    parents: [head],
+  });
+  const update = await api(token, "PATCH", `/repos/${repo.owner}/${repo.repo}/git/refs/heads/${encodeURIComponent(branch)}`, {
+    sha: created.sha,
+    force: false,
+  });
+  if (!update.ok) {
+    const detail = await update.text().catch(() => "");
+    throw new GithubApiError(409, `The branch moved while saving; reload and try again. ${detail.slice(0, 200)}`.trim());
+  }
+  return { commitSha: created.sha, blobs };
 }
 
 /**

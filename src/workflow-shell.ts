@@ -1,6 +1,8 @@
 import type { FileBarState } from "./file-bar.ts";
 import type { RepoSessionContext } from "./repo-panel.ts";
 import type { WorkspaceLocation } from "./workspace-nav.ts";
+import type { RepositoryChange } from "./github.ts";
+import type { VersionPreview } from "./repo-panel.ts";
 
 export type SessionKind = "local" | "github";
 
@@ -10,7 +12,9 @@ export interface WorkflowShellHost {
   saveCurrent(): Promise<boolean>;
   saveNewVersion(): Promise<boolean>;
   canSaveNewVersion(): boolean;
+  previewNewVersion(): VersionPreview;
   openPullRequest(): Promise<string | null>;
+  listRepositoryChanges(): Promise<RepositoryChange[]>;
   toggleLocation(): void;
   openLocation(): void;
   closeLocation(): void;
@@ -60,7 +64,7 @@ export function mountWorkflowShell(host: WorkflowShellHost): WorkflowShell {
   let fileState: FileBarState = { name: "Untitled", dirty: false, external: false, status: "" };
   let location: WorkspaceLocation = { module: "", series: "", page: "", available: false };
   let repoContext: RepoSessionContext = { label: "GitHub repository", base: "main", branch: "dewnote-edits" };
-  const changedPaths = new Set<string>();
+  let repositoryChanges: RepositoryChange[] = [];
 
   const gate = document.createElement("section");
   gate.className = "dn-source-gate";
@@ -145,12 +149,11 @@ export function mountWorkflowShell(host: WorkflowShellHost): WorkflowShell {
   const modules = button("Arrange modules and series");
   const settings = button("Settings");
   const changeWorkspace = button("Change workspace…", "dn-workflow-change-workspace");
-  workspaceMenu.append(
-    section("Open", findDocument, rawFiles, openFile),
-    section("Transfer", importNotebook, exportNotebook, exportHtml),
-    section("Document", outline, source, links),
-    section("Workspace", modules, settings, changeWorkspace),
-  );
+  const openSection = section("Open", findDocument, rawFiles, openFile);
+  const transferSection = section("Transfer", importNotebook, exportNotebook, exportHtml);
+  const documentSection = section("Document", outline, source, links);
+  const workspaceSection = section("Workspace", modules, settings, changeWorkspace);
+  workspaceMenu.append(openSection, transferSection, documentSection, workspaceSection);
   document.body.appendChild(workspaceMenu);
 
   const saveMenu = document.createElement("div");
@@ -161,6 +164,25 @@ export function mountWorkflowShell(host: WorkflowShellHost): WorkflowShell {
   const saveVersion = button("Save as a new version…");
   saveMenu.append(saveCurrent, saveVersion);
   document.body.appendChild(saveMenu);
+
+  const versionConfirm = document.createElement("section");
+  versionConfirm.className = "dn-workflow-popover dn-version-confirm";
+  versionConfirm.hidden = true;
+  versionConfirm.setAttribute("role", "dialog");
+  versionConfirm.setAttribute("aria-labelledby", "dn-version-confirm-title");
+  const versionTitle = document.createElement("strong");
+  versionTitle.id = "dn-version-confirm-title";
+  versionTitle.textContent = "Create a new version?";
+  const versionCopy = document.createElement("p");
+  const versionPaths = document.createElement("dl");
+  versionPaths.className = "dn-version-paths";
+  const versionActions = document.createElement("div");
+  versionActions.className = "dn-version-actions";
+  const cancelVersion = button("Cancel");
+  const confirmVersion = button("Create version", "dn-workflow-primary");
+  versionActions.append(cancelVersion, confirmVersion);
+  versionConfirm.append(versionTitle, versionCopy, versionPaths, versionActions);
+  document.body.appendChild(versionConfirm);
 
   const toast = document.createElement("div");
   toast.className = "dn-workflow-toast";
@@ -199,6 +221,7 @@ export function mountWorkflowShell(host: WorkflowShellHost): WorkflowShell {
   function closeTransient(): void {
     workspaceMenu.hidden = true;
     saveMenu.hidden = true;
+    versionConfirm.hidden = true;
     workspaceButton.setAttribute("aria-expanded", "false");
     saveMore.setAttribute("aria-expanded", "false");
     if (host.locationIsOpen()) host.closeLocation();
@@ -215,8 +238,10 @@ export function mountWorkflowShell(host: WorkflowShellHost): WorkflowShell {
   }
 
   function render(): void {
+    const hasDocument = Boolean(location.page);
+    document.body.classList.toggle("dn-has-document", hasDocument);
     fileName.textContent = location.page ? fileState.name : "No document selected";
-    saveState.textContent = fileState.dirty ? "Unsaved changes" : "Saved";
+    saveState.textContent = hasDocument ? (fileState.dirty ? "Unsaved changes" : "Saved") : "";
     saveState.classList.toggle("is-dirty", fileState.dirty);
     identityName.textContent = session === "github" ? repoContext.label : identityName.textContent || "Local workspace";
     identityDetail.textContent = session === "github" ? `${repoContext.base} → ${repoContext.branch}` : "Local folder";
@@ -225,8 +250,29 @@ export function mountWorkflowShell(host: WorkflowShellHost): WorkflowShell {
     locationButton.setAttribute("aria-label", location.available ? `Current location: ${parts.join(", ")}. Choose another document.` : "Browse workspace files");
     saveVersion.hidden = session !== "github" || !host.canSaveNewVersion();
     modules.hidden = !location.available;
-    reviewButton.hidden = session !== "github" || changedPaths.size === 0;
-    changesButton.hidden = session !== "github" || changedPaths.size === 0;
+    openFile.hidden = session === "github";
+    importNotebook.hidden = session === "github";
+    exportNotebook.hidden = !hasDocument;
+    exportHtml.hidden = !hasDocument;
+    documentSection.hidden = !hasDocument;
+    transferSection.hidden = importNotebook.hidden && exportNotebook.hidden && exportHtml.hidden;
+    saveState.hidden = !hasDocument;
+    saveButton.hidden = !hasDocument;
+    saveMore.hidden = !hasDocument;
+    saveArea.hidden = !hasDocument && repositoryChanges.length === 0;
+    reviewButton.hidden = session !== "github" || repositoryChanges.length === 0;
+    changesButton.hidden = session !== "github" || repositoryChanges.length === 0;
+  }
+
+  async function refreshRepositoryChanges(): Promise<RepositoryChange[]> {
+    if (session !== "github") {
+      repositoryChanges = [];
+      render();
+      return [];
+    }
+    repositoryChanges = await host.listRepositoryChanges();
+    render();
+    return repositoryChanges;
   }
 
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -259,9 +305,43 @@ export function mountWorkflowShell(host: WorkflowShellHost): WorkflowShell {
   saveMore.addEventListener("click", () => toggle(saveMenu, saveMore));
   saveButton.addEventListener("click", () => { void save(); });
   saveCurrent.addEventListener("click", () => { void save(false); });
-  saveVersion.addEventListener("click", async () => {
+  saveVersion.addEventListener("click", () => {
     closeTransient();
-    if (await host.saveNewVersion()) showToast(`Created a new version on ${repoContext.branch}`);
+    const preview = host.previewNewVersion();
+    if ("error" in preview) {
+      showToast(preview.error);
+      return;
+    }
+    versionCopy.textContent = `Version ${preview.previousVersion} will remain frozen, and ${preview.nextVersion} will become the live tutorial.`;
+    const row = (label: string, value: string) => {
+      const term = document.createElement("dt");
+      term.textContent = label;
+      const description = document.createElement("dd");
+      description.textContent = value;
+      return [term, description];
+    };
+    versionPaths.replaceChildren(
+      ...row("Preserve", preview.frozenPath),
+      ...row("Update", preview.currentPath),
+    );
+    confirmVersion.textContent = `Create ${preview.nextVersion}`;
+    versionConfirm.hidden = false;
+    confirmVersion.focus();
+  });
+  cancelVersion.addEventListener("click", () => {
+    versionConfirm.hidden = true;
+    saveMore.focus();
+  });
+  confirmVersion.addEventListener("click", async () => {
+    confirmVersion.disabled = true;
+    try {
+      if (await host.saveNewVersion()) {
+        versionConfirm.hidden = true;
+        showToast(`Created a new version on ${repoContext.branch}`);
+      }
+    } finally {
+      confirmVersion.disabled = false;
+    }
   });
   locationButton.addEventListener("click", () => {
     closeTransient();
@@ -293,23 +373,52 @@ export function mountWorkflowShell(host: WorkflowShellHost): WorkflowShell {
     closeTransient();
     if (fileState.dirty && !window.confirm("Discard unsaved changes and choose another workspace?")) return;
     host.resetWorkspace();
+    session = null;
+    fileState = { name: "Untitled", dirty: false, external: false, status: "" };
+    location = { module: "", series: "", page: "", available: false };
+    repositoryChanges = [];
+    review.hidden = true;
+    header.hidden = true;
+    gate.hidden = false;
+    gate.classList.remove("is-choosing-repository");
+    document.body.classList.remove("dn-choosing-repository");
+    localChoice.disabled = false;
+    githubChoice.disabled = false;
+    render();
+    localChoice.focus();
   });
-  const openReview = () => {
+  const openReview = async () => {
     closeTransient();
-    reviewCopy.textContent = `Changes on ${repoContext.branch}, ready to compare with ${repoContext.base}.`;
-    changes.replaceChildren(...[...changedPaths].map((path) => {
+    review.hidden = false;
+    openPr.disabled = true;
+    reviewCopy.textContent = `Checking ${repoContext.branch} against ${repoContext.base}…`;
+    changes.replaceChildren();
+    let current: RepositoryChange[];
+    try {
+      current = await refreshRepositoryChanges();
+    } catch (error) {
+      reviewCopy.textContent = error instanceof Error ? error.message : String(error);
+      return;
+    }
+    openPr.disabled = current.length === 0;
+    reviewCopy.textContent = current.length
+      ? `${current.length} change${current.length === 1 ? "" : "s"} on ${repoContext.branch}, compared with ${repoContext.base}.`
+      : `${repoContext.branch} has no changes compared with ${repoContext.base}.`;
+    const statusLabel = (status: string) => status === "added" ? "Added" : status === "removed" ? "Deleted" : status === "renamed" ? "Renamed" : "Modified";
+    changes.replaceChildren(...current.map((change) => {
       const item = document.createElement("li");
       const name = document.createElement("strong");
-      name.textContent = path;
+      name.textContent = change.path;
       const kind = document.createElement("span");
-      kind.textContent = /(?:courses|modules)\/.*\.ya?ml$/i.test(path) ? "Module descriptor" : "Document or asset";
+      const subject = /(?:courses|modules)\/.*\.ya?ml$/i.test(change.path) ? "Module descriptor" : "Document or asset";
+      const movement = change.previousPath ? ` · from ${change.previousPath}` : "";
+      kind.textContent = `${statusLabel(change.status)} ${subject.toLocaleLowerCase()} · +${change.additions} −${change.deletions}${movement}`;
       item.append(name, kind);
       return item;
     }));
-    review.hidden = false;
   };
-  reviewButton.addEventListener("click", openReview);
-  changesButton.addEventListener("click", openReview);
+  reviewButton.addEventListener("click", () => { void openReview(); });
+  changesButton.addEventListener("click", () => { void openReview(); });
   dismissToast.addEventListener("click", () => { toast.hidden = true; });
   const closeReview = () => { review.hidden = true; };
   back.addEventListener("click", closeReview);
@@ -328,7 +437,7 @@ export function mountWorkflowShell(host: WorkflowShellHost): WorkflowShell {
   });
   document.addEventListener("pointerdown", (event) => {
     const target = event.target as Node;
-    if (workspaceMenu.contains(target) || saveMenu.contains(target) || header.contains(target) || host.locationContains(target) || host.panelContains(target)) return;
+    if (workspaceMenu.contains(target) || saveMenu.contains(target) || versionConfirm.contains(target) || header.contains(target) || host.locationContains(target) || host.panelContains(target)) return;
     closeTransient();
   });
 
@@ -341,6 +450,7 @@ export function mountWorkflowShell(host: WorkflowShellHost): WorkflowShell {
       gate.hidden = true;
       gate.classList.remove("is-choosing-repository");
       document.body.classList.remove("dn-choosing-repository");
+      document.body.classList.remove("dn-has-document");
       header.hidden = false;
       identityName.textContent = label;
       identityDetail.textContent = detail ?? (kind === "github" ? `${repoContext.base} → ${repoContext.branch}` : "Local folder");
@@ -350,22 +460,31 @@ export function mountWorkflowShell(host: WorkflowShellHost): WorkflowShell {
         host.openLocation();
         locationButton.setAttribute("aria-expanded", "true");
       } else host.openRawFiles();
+      if (kind === "github") void refreshRepositoryChanges().catch(() => {});
     },
     setRepoContext(context) { repoContext = context; render(); },
     setFileState(state) { fileState = state; render(); },
     setLocation(next) { location = next; render(); },
-    noteBranchChange(path) { changedPaths.add(path); showToast(`Saved change on ${repoContext.branch}`); },
+    noteBranchChange(path) {
+      if (!repositoryChanges.some((change) => change.path === path)) {
+        repositoryChanges.push({ path, status: "modified", additions: 0, deletions: 0 });
+      }
+      showToast(`Saved change on ${repoContext.branch}`);
+      void refreshRepositoryChanges().catch(() => {});
+    },
     documentSaved() { saveState.textContent = "Saved"; render(); },
     cancelSourceChoice() {
       gate.classList.remove("is-choosing-repository");
       document.body.classList.remove("dn-choosing-repository");
+      document.body.classList.remove("dn-has-document");
     },
     closeTransient,
     destroy() {
       if (toastTimer) clearTimeout(toastTimer);
       document.body.classList.remove("dn-progressive");
       document.body.classList.remove("dn-choosing-repository");
-      gate.remove(); header.remove(); workspaceMenu.remove(); saveMenu.remove(); toast.remove(); review.remove();
+      document.body.classList.remove("dn-has-document");
+      gate.remove(); header.remove(); workspaceMenu.remove(); saveMenu.remove(); versionConfirm.remove(); toast.remove(); review.remove();
     },
   };
 }

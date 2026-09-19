@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { fromBase64, listModuleFiles, listMarkdownFiles, putFileContent, toBase64 } from "./github.ts";
+import { commitFilesAtomically, compareBranches, fromBase64, listModuleFiles, listMarkdownFiles, putFileContent, toBase64 } from "./github.ts";
 
 describe("toBase64/fromBase64", () => {
   test("round-trips plain ASCII", () => {
@@ -188,5 +188,92 @@ describe("putFileContent", () => {
       branch: "dewnote-edits",
       sha: "old-sha",
     });
+  });
+});
+
+describe("compareBranches", () => {
+  const originalFetch = globalThis.fetch;
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  test("returns the repository's real added, modified, deleted and renamed files", async () => {
+    globalThis.fetch = (async () => new Response(JSON.stringify({ files: [
+      { filename: "tutorials/new.md", status: "added", additions: 12, deletions: 0 },
+      { filename: "courses/module.yaml", status: "modified", additions: 2, deletions: 1 },
+      { filename: "old.md", status: "removed", additions: 0, deletions: 8 },
+      { filename: "new-name.md", previous_filename: "old-name.md", status: "renamed", additions: 1, deletions: 1 },
+    ] }), { status: 200 })) as unknown as typeof fetch;
+
+    expect(await compareBranches({ owner: "deweydex", repo: "dewlab" }, "main", "dewnote-edits", "tok")).toEqual([
+      { path: "tutorials/new.md", status: "added", additions: 12, deletions: 0 },
+      { path: "courses/module.yaml", status: "modified", additions: 2, deletions: 1 },
+      { path: "old.md", status: "removed", additions: 0, deletions: 8 },
+      { path: "new-name.md", previousPath: "old-name.md", status: "renamed", additions: 1, deletions: 1 },
+    ]);
+  });
+
+  test("a working branch that does not exist yet has no changes", async () => {
+    globalThis.fetch = (async () => new Response("{}", { status: 404 })) as unknown as typeof fetch;
+    expect(await compareBranches({ owner: "deweydex", repo: "dewlab" }, "main", "missing", "tok")).toEqual([]);
+  });
+});
+
+describe("commitFilesAtomically", () => {
+  const originalFetch = globalThis.fetch;
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  test("checks both paths and advances the branch with one commit", async () => {
+    const calls: { method: string; path: string; body?: Record<string, unknown> }[] = [];
+    let blob = 0;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input));
+      const method = init?.method ?? "GET";
+      const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
+      calls.push({ method, path: `${url.pathname}${url.search}`, ...(body ? { body } : {}) });
+      if (url.pathname.endsWith("/git/ref/heads/dewnote-edits")) return new Response(JSON.stringify({ object: { sha: "head-sha" } }), { status: 200 });
+      if (url.pathname.includes("/contents/frozen.md")) return new Response("{}", { status: 404 });
+      if (url.pathname.includes("/contents/live.md")) return new Response(JSON.stringify({ sha: "live-sha" }), { status: 200 });
+      if (url.pathname.endsWith("/git/commits/head-sha")) return new Response(JSON.stringify({ tree: { sha: "base-tree" } }), { status: 200 });
+      if (url.pathname.endsWith("/git/blobs")) return new Response(JSON.stringify({ sha: `blob-${++blob}` }), { status: 201 });
+      if (url.pathname.endsWith("/git/trees")) return new Response(JSON.stringify({ sha: "new-tree" }), { status: 201 });
+      if (url.pathname.endsWith("/git/commits")) return new Response(JSON.stringify({ sha: "new-commit" }), { status: 201 });
+      if (url.pathname.endsWith("/git/refs/heads/dewnote-edits")) return new Response(JSON.stringify({ object: { sha: "new-commit" } }), { status: 200 });
+      throw new Error(`Unexpected ${method} ${url.pathname}`);
+    }) as typeof fetch;
+
+    const result = await commitFilesAtomically(
+      { owner: "deweydex", repo: "dewlab" },
+      "dewnote-edits",
+      "main",
+      [
+        { path: "frozen.md", content: "old", expectedSha: null },
+        { path: "live.md", content: "new", expectedSha: "live-sha" },
+      ],
+      "Release",
+      "tok",
+    );
+    expect(result).toEqual({ commitSha: "new-commit", blobs: { "frozen.md": "blob-1", "live.md": "blob-2" } });
+    expect(calls.filter((call) => call.method === "POST" && call.path.endsWith("/git/commits"))).toHaveLength(1);
+    expect(calls.filter((call) => call.method === "PATCH" && call.path.endsWith("/git/refs/heads/dewnote-edits"))).toHaveLength(1);
+  });
+
+  test("refuses the whole commit before creating blobs when an expected path changed", async () => {
+    const calls: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      calls.push(url.pathname);
+      if (url.pathname.endsWith("/git/ref/heads/dewnote-edits")) return new Response(JSON.stringify({ object: { sha: "head-sha" } }), { status: 200 });
+      if (url.pathname.includes("/contents/live.md")) return new Response(JSON.stringify({ sha: "someone-elses-sha" }), { status: 200 });
+      throw new Error(`Unexpected ${url.pathname}`);
+    }) as typeof fetch;
+
+    await expect(commitFilesAtomically(
+      { owner: "deweydex", repo: "dewlab" },
+      "dewnote-edits",
+      "main",
+      [{ path: "live.md", content: "new", expectedSha: "old-sha" }],
+      "Release",
+      "tok",
+    )).rejects.toMatchObject({ status: 409 });
+    expect(calls.some((path) => path.endsWith("/git/blobs"))).toBe(false);
   });
 });

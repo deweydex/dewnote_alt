@@ -47,6 +47,9 @@ export interface FileBar {
   openExternal(name: string): void;
   /** The owning store successfully persisted the current source. */
   markSaved(): void;
+  /** Forget the previous store's file identity when returning to source
+   * choice. The caller owns mounting the fresh starter document. */
+  reset(): void;
   getState(): FileBarState;
   saveCurrent(): Promise<boolean>;
   openDeviceFile(): Promise<void>;
@@ -376,6 +379,13 @@ export function mountFileBar(host: FileBarHost): FileBar {
       render();
     },
     markSaved,
+    reset() {
+      opened = null;
+      externalName = null;
+      dirty = false;
+      lastSeen = host.getSource();
+      render();
+    },
     getState() {
       const name = externalName ?? opened?.name ?? "Untitled";
       return {

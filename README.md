@@ -1,13 +1,19 @@
 # dewnote
 
-A minimal editor for notebooks written as markdown: prose, LaTeX maths, and
-code cells that run in the page. The file on disk is a plain markdown file
-in whichever dialect a target site expects (dewlab, dewstack, or none), so
-nothing the editor writes is private to the editor. It runs as a single
-HTML file in a browser, and as a Mac application built from the same code.
+A focused editor for Dewlab teaching documents written as Markdown: prose,
+LaTeX maths, executable Python and SQL cells, questions, hints, cards, and
+small HTML/CSS/JavaScript examples. Files remain ordinary Markdown and YAML;
+nothing Dewnote writes is locked into a private document format.
 
-`planning/PLAN.md` is the design and the order of work; `planning/DIALECTS.md`
-is the inventory of what the files it must open and save look like;
+Dewnote opens either a local teaching folder or a GitHub repository. It reads
+Dewlab module descriptors, presents tutorials and practice pages in their
+authored order, edits one document at a time, and saves locally or to a GitHub
+working branch. A repository session can review its complete branch diff,
+create dated tutorial versions, and open a draft pull request.
+
+`planning/PROGRESSIVE_WORKFLOW_UI.md` describes the current source → document
+→ save → publish workflow. `planning/PLAN.md` is the original build plan and
+`planning/DIALECTS.md` inventories the files Dewnote opens and saves;
 `DECISIONS.md` records what was decided and why, in the same spirit as
 dewlab's `DECISIONS_LOG.md`. `planning/mockups/` has design sketches.
 
@@ -21,20 +27,16 @@ bun test          # the document model's tests, fixtures/ included
 bun run typecheck
 ```
 
-`src/full-corpus.test.ts` additionally round-trips every tutorial in
-`../dewlab` and `../dewstack` when those repositories are checked out as
-siblings of this one; it skips itself otherwise.
+`src/full-corpus.test.ts` additionally round-trips every tutorial in a sibling
+`../dewlab` checkout. Historical compatibility fixtures remain in the test
+suite, but Dewstack is retired and is not presented as a workspace or
+conversion target.
 
 ## Where things are
 
-The plan's step 1 (`planning/PLAN.md` §6) — the document model — is
-built: `src/lines.ts` indexes a document by line span, `src/frontmatter.ts`
-and `src/dialect.ts` read a document's front matter and decide dewlab,
-dewstack, or plain, and `src/blocks.ts` splits a document into the blocks
-described in the plan's §5.2 (fences, display maths, folds, front matter,
-and blank-line-separated prose), recording only byte offsets. Every
-tutorial in `fixtures/`, and every tutorial in dewlab and dewstack when
-checked out alongside this repository, round-trips through it byte for
-byte — see `src/roundtrip.test.ts` and `src/full-corpus.test.ts`. Nothing
-past that (the editing surface, running cells, files, GitHub, exports, the
-Mac app) is built yet; §6 has the rest of the order.
+The document model records byte offsets and round-trips untouched source byte
+for byte. The browser interface adds rendered in-place editing, executable
+cells, block creation and reordering, front-matter forms, module organisation,
+local-folder access, GitHub branch saving, notebook import/export, standalone
+HTML export, link checking, and source/outline views. Browser interaction tests
+exercise the same built application rather than a separate UI harness.

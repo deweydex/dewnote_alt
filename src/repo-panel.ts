@@ -27,6 +27,9 @@
 // mode, only the REST API.
 
 import {
+  branchExists,
+  commitFilesAtomically,
+  compareBranches,
   ensureBranch,
   forgetToken,
   getFileBytes,
@@ -39,6 +42,7 @@ import {
   openPullRequest,
   putFileContent,
   saveToken,
+  type RepositoryChange,
   type RepoFile,
   type RepoRef,
 } from "./github.ts";
@@ -81,13 +85,20 @@ export interface RepoSessionContext {
   branch: string;
 }
 
+export type VersionPreview =
+  | { previousVersion: string; nextVersion: string; frozenPath: string; currentPath: string }
+  | { error: string };
+
 export interface RepoPanel {
   pushCurrent(): Promise<boolean>;
   pushNewVersion(): Promise<boolean>;
   canPushNewVersion(): boolean;
+  previewNewVersion(): VersionPreview;
   openPullRequest(): Promise<string | null>;
+  listChanges(): Promise<RepositoryChange[]>;
   showChooser(): void;
   hide(): void;
+  reset(): void;
   getContext(): RepoSessionContext;
   destroy(): void;
 }
@@ -162,6 +173,7 @@ export function mountRepoPanel(host: RepoPanelHost): RepoPanel {
   let modules: Module[] = [];
   let fileIndex: FileIndexEntry[] = [];
   let selectedModuleId = "";
+  let browseRef = settings.base || "main";
   /** `file.sha` is only absent for a document `startNewFile` just pointed
    * at a path with nothing there yet (decision 32) — every other path
    * here (`openRepoFile`, a conflict's own keep/take) always has a real
@@ -567,11 +579,18 @@ export function mountRepoPanel(host: RepoPanelHost): RepoPanel {
       repoStatus.textContent = "Enter an owner and repo.";
       return;
     }
-    const ref = baseInput.value.trim() || "main";
-    saveRepoSettings({ owner: repo.owner, repo: repo.repo, base: ref, branch: settings.branch });
+    const base = baseInput.value.trim() || "main";
+    const branch = branchInput.value.trim() || "dewnote-edits";
+    saveRepoSettings({ owner: repo.owner, repo: repo.repo, base, branch });
     loadButton.disabled = true;
     repoStatus.textContent = "Loading…";
     try {
+      // Resume an existing editing session from its working branch. The
+      // base remains the comparison and pull-request target, but showing
+      // base content here would hide the author's own earlier commits
+      // and invite conflicts on the next save.
+      const ref = await branchExists(repo, branch, token) ? branch : base;
+      browseRef = ref;
       // Listed separately (github.ts's own two functions, one tree fetch
       // each), but merged into one browsable/searchable list: a
       // module file is a plain text file like any other, and opening one
@@ -733,7 +752,7 @@ export function mountRepoPanel(host: RepoPanelHost): RepoPanel {
       const indexResult = await refreshIndex(repo, ref, token, markdownFiles, moduleResult.modules);
       viewTabs.hidden = false;
       selectRepoView("modules");
-      host.onSessionOpen?.({ label: `${repo.owner}/${repo.repo}`, base: ref, branch: branchInput.value.trim() || "dewnote-edits" });
+      host.onSessionOpen?.({ label: `${repo.owner}/${repo.repo}`, base, branch });
       const warnings = [
         ...moduleResult.failures,
         ...moduleResult.invalid.map((path) => `${path}: invalid module YAML`),
@@ -758,7 +777,7 @@ export function mountRepoPanel(host: RepoPanelHost): RepoPanel {
       return false;
     }
     const repo = currentRepo();
-    const ref = baseInput.value.trim() || "main";
+    const ref = browseRef;
     repoStatus.textContent = `Opening ${file.path}…`;
     try {
       const { content, sha } = await getFileContent(repo, file.path, ref, token);
@@ -993,40 +1012,24 @@ export function mountRepoPanel(host: RepoPanelHost): RepoPanel {
     pushStatus.textContent = `Creating version ${prepared.nextVersion} on ${branch}…`;
     try {
       await ensureBranch(opened.repo, branch, base, token);
-      let frozenSha: string | undefined;
-      try {
-        frozenSha = (await putFileContent(
-          opened.repo,
-          prepared.frozenPath,
-          prepared.frozenContent,
-          undefined,
-          branch,
-          `Freeze ${prepared.previousVersion} of ${entry?.title ?? entry?.id ?? opened.file.path} from dewnote`,
-          token,
-        )).sha;
-      } catch (err) {
-        // A retry after the first half succeeded is safe when the file on
-        // the branch is byte-for-byte the committed release we meant to
-        // freeze. Anything else remains a real collision.
-        if (!(err instanceof GithubApiError) || err.status !== 422) throw err;
-        const existing = await getFileContent(opened.repo, prepared.frozenPath, branch, token);
-        if (existing.content !== prepared.frozenContent) throw err;
-        frozenSha = existing.sha;
-      }
-      const result = await putFileContent(
+      const result = await commitFilesAtomically(
         opened.repo,
-        prepared.currentPath,
-        prepared.releasedContent,
-        opened.file.sha,
         branch,
+        base,
+        [
+          { path: prepared.frozenPath, content: prepared.frozenContent, expectedSha: null },
+          { path: prepared.currentPath, content: prepared.releasedContent, expectedSha: opened.file.sha },
+        ],
         `Release ${entry?.title ?? entry?.id ?? opened.file.path} as ${prepared.nextVersion} from dewnote`,
         token,
       );
-      if (!files.some((file) => file.path === prepared.frozenPath)) files.push({ path: prepared.frozenPath, sha: frozenSha! });
+      if (!files.some((file) => file.path === prepared.frozenPath)) {
+        files.push({ path: prepared.frozenPath, sha: result.blobs[prepared.frozenPath]! });
+      }
       fileIndex = fileIndex.map((item) => item.path === prepared.currentPath ? { ...item, version: prepared.nextVersion } : item);
       opened = {
         ...opened,
-        file: { path: prepared.currentPath, sha: result.sha },
+        file: { path: prepared.currentPath, sha: result.blobs[prepared.currentPath]! },
         originalContent: prepared.releasedContent,
       };
       host.loadDocument(prepared.releasedContent, prepared.currentPath);
@@ -1081,6 +1084,19 @@ export function mountRepoPanel(host: RepoPanelHost): RepoPanel {
   }
   prButton.addEventListener("click", () => { void openCurrentPullRequest(); });
 
+  async function listChanges(): Promise<RepositoryChange[]> {
+    const token = currentToken();
+    if (!token) throw new Error("Enter a GitHub token first.");
+    const repo = currentRepo();
+    if (!repo.owner || !repo.repo) throw new Error("Enter an owner and repo.");
+    return compareBranches(
+      repo,
+      baseInput.value.trim() || "main",
+      branchInput.value.trim() || "dewnote-edits",
+      token,
+    );
+  }
+
   labelToggle(toggle, "GitHub");
   iconRail().appendChild(toggle);
   document.body.appendChild(panel);
@@ -1094,11 +1110,43 @@ export function mountRepoPanel(host: RepoPanelHost): RepoPanel {
     canPushNewVersion() {
       return Boolean(opened?.file.sha && opened.originalContent !== undefined && /^(?:.*\/)?tutorials\/([^/]+)\/\1\.md$/.test(opened.file.path));
     },
+    previewNewVersion() {
+      if (!opened?.file.sha || opened.originalContent === undefined) {
+        return { error: "Open a live tutorial before creating a new version." };
+      }
+      const entry = fileIndex.find((item) => item.path === opened!.file.path);
+      const family = fileIndex.filter((item) => item.id && item.id === entry?.id).map((item) => item.version);
+      const prepared = prepareRelease(opened.file.path, opened.originalContent, host.getSource(), family);
+      if ("error" in prepared) return prepared;
+      return {
+        previousVersion: prepared.previousVersion,
+        nextVersion: prepared.nextVersion,
+        frozenPath: prepared.frozenPath,
+        currentPath: prepared.currentPath,
+      };
+    },
     openPullRequest: openCurrentPullRequest,
+    listChanges,
     showChooser() {
       if (panel.hidden) toggle.click();
     },
     hide() {
+      if (!panel.hidden) closeButton.click();
+    },
+    reset() {
+      files = [];
+      modules = [];
+      fileIndex = [];
+      selectedModuleId = "";
+      browseRef = baseInput.value.trim() || "main";
+      opened = null;
+      hideConflict();
+      prButton.hidden = true;
+      viewTabs.hidden = true;
+      repoStatus.textContent = "";
+      renderFiles();
+      renderModules();
+      renderPush();
       if (!panel.hidden) closeButton.click();
     },
     getContext() {
