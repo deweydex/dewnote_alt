@@ -80,10 +80,10 @@ test("a local choice asks for a real document before showing its breadcrumb", as
   await expect(page.locator(".dn-workflow-file-name")).toHaveText("No document selected");
   await expect(page.locator(".dn-workflow-location")).toHaveText("Choose a document");
   await expect(page.locator(".dn-workspace-nav")).toBeVisible();
-  await expect(page.locator(".dn-workspace-nav-module")).toHaveValue("foundations");
-  await expect(page.locator(".dn-workspace-nav-series")).toHaveValue("First steps");
+  await expect(page.getByRole("tab", { name: "Foundations" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".dn-workspace-nav-series h2")).toHaveText("First steps");
 
-  await page.locator(".dn-workspace-nav-open").click();
+  await page.locator(".dn-workspace-nav-document").click();
   await expect(page.locator(".dn-workspace-nav")).toBeHidden();
   await expect(page.locator(".dn-workflow-file-name")).toHaveText("tutorials/a-rule/a-rule.md");
   await expect(page.locator(".dn-workflow-location")).toContainText("Foundations › First steps › A Rule");
@@ -130,11 +130,21 @@ test("GitHub connection discovers modules, then yields to the document workflow"
   await expect(page.locator(".dn-workflow-identity strong")).toHaveText("deweydex/dewlab");
   await expect(page.locator(".dn-workflow-file-name")).toHaveText("No document selected");
   await expect(page.locator(".dn-workspace-nav")).toBeVisible();
-  await expect(page.locator(".dn-workspace-nav-module")).toHaveValue("foundations");
-  await expect(page.locator(".dn-workspace-nav-page option")).toHaveCount(1);
-  await page.locator(".dn-workspace-nav-open").click();
+  await expect(page.getByRole("tab", { name: "Foundations" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".dn-workspace-nav-document")).toHaveCount(1);
+  await page.locator(".dn-workspace-nav-document").click();
   await expect(page.locator(".dn-workflow-file-name")).toHaveText("tutorials/a-rule/a-rule.md");
   await expect(page.locator(".dn-workflow-location")).toContainText("Foundations › First steps › A Rule");
+});
+
+test("the document chooser searches across module, series, title, and path", async ({ page }) => {
+  await page.getByRole("button", { name: /Open a local folder/ }).click();
+  const chooser = page.locator(".dn-workspace-nav");
+  await chooser.getByRole("searchbox", { name: "Search documents" }).fill("a-rule.md");
+  await expect(chooser.locator(".dn-workspace-nav-document")).toHaveCount(1);
+  await expect(chooser.locator(".dn-workspace-nav-document")).toContainText("A Rule");
+  await chooser.getByRole("searchbox", { name: "Search documents" }).fill("nothing here");
+  await expect(chooser.locator(".dn-workspace-nav-empty")).toBeVisible();
 });
 
 test("closing repository setup returns to the source choice", async ({ page }) => {
