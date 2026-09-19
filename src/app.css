@@ -33,6 +33,7 @@ body {
 .dn-workflow-popover[hidden],
 .dn-workflow-toast[hidden],
 .dn-change-review[hidden],
+.dn-workspace-nav[hidden],
 .dn-progressive .dn-workspace-nav[hidden] {
   display: none !important;
 }
@@ -348,27 +349,15 @@ body {
   border-radius: 0 !important;
 }
 
-/* The three Dewlab breadcrumbs are a chooser only while requested. */
+/* The module browser is a chooser only while requested. */
 .dn-progressive .dn-workspace-nav {
   top: 4.6rem;
   left: 50%;
   z-index: 80;
   width: min(46rem, calc(100vw - 2rem));
-  grid-template-columns: auto repeat(3, minmax(0, 1fr)) auto;
+  max-height: calc(100vh - 6rem);
   transform: translateX(-50%);
   box-shadow: 0 14px 40px var(--dl-shadow);
-}
-
-.dn-workspace-nav-open {
-  min-height: 2.35rem;
-  padding: 0.3rem 0.7rem;
-  border: 1px solid var(--dl-orange);
-  border-radius: 6px;
-  background: var(--dl-orange);
-  color: var(--dl-bg);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
 }
 
 .dn-workflow-toast {
@@ -619,6 +608,28 @@ body {
   background: var(--dn-cell-bg);
   font-family: var(--dl-mono);
   font-size: 0.9em;
+}
+.dn-block-prose-source .dn-md-heading {
+  color: var(--dl-heading);
+  font-weight: 700;
+}
+.dn-block-prose-source .dn-md-heading-1 { font-size: 2em; }
+.dn-block-prose-source .dn-md-heading-2 { font-size: 1.5em; }
+.dn-block-prose-source .dn-md-heading-3 { font-size: 1.17em; }
+.dn-block-prose-source .dn-md-heading-4 { font-size: 1em; }
+.dn-block-prose-source .dn-md-heading-5 { font-size: 0.83em; }
+.dn-block-prose-source .dn-md-heading-6 { font-size: 0.67em; }
+.dn-block-prose-source .dn-md-list-marker {
+  display: inline-block;
+  width: 1.35em;
+  color: var(--dl-muted);
+  text-align: right;
+}
+.dn-block-prose-source .dn-md-quote-marker {
+  display: inline-block;
+  width: 1.35em;
+  color: var(--dl-orange);
+  font-weight: 700;
 }
 
 /* A fold keeps its disclosure wrapper visible while only its Markdown
@@ -1479,64 +1490,126 @@ body {
   border-color: var(--dl-orange);
 }
 
-/* Dewlab's where-you-are tree, adapted to an editor as three compact
-   dropdown rungs. It is navigation rather than a drawer, so it stays on
-   the left while every editing/inspection panel remains on the right. */
+/* Dewlab's module hierarchy as a compact, searchable document browser. */
 .dn-workspace-nav {
   position: fixed;
   top: 4.75rem;
   left: 1rem;
   z-index: 8;
   display: grid;
-  width: 13rem;
-  gap: 0.4rem;
-  padding: 0.65rem;
+  width: 20rem;
+  max-height: calc(100vh - 6rem);
+  gap: 0.75rem;
+  padding: 1rem;
+  overflow-y: auto;
+  box-sizing: border-box;
   border: 1px solid var(--dl-cell-border);
-  border-radius: 10px;
+  border-radius: 14px;
   background: color-mix(in srgb, var(--dl-panel-bg) 94%, transparent);
   box-shadow: 0 5px 18px var(--dl-shadow);
   font-family: var(--dl-font-family);
-  font-size: 0.78rem;
+  font-size: 0.85rem;
+}
+.dn-workspace-nav-header {
+  display: grid;
+  gap: 0.2rem;
 }
 .dn-workspace-nav-heading {
-  color: var(--dl-muted);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  color: var(--dl-heading);
+  font-size: 1.05rem;
 }
-.dn-workspace-nav select {
+.dn-workspace-nav-header span,
+.dn-workspace-nav-document small {
+  color: var(--dl-muted);
+  line-height: 1.35;
+}
+.dn-workspace-nav-search {
   width: 100%;
-  min-height: 2.35rem;
+  min-height: 2.65rem;
   box-sizing: border-box;
   border: 1px solid var(--dn-control-border);
-  border-radius: 6px;
+  border-radius: 9px;
   background: var(--dn-control-bg);
   color: var(--dl-fg);
   font: inherit;
-  padding: 0.3rem 1.65rem 0.3rem 0.45rem;
+  padding: 0.5rem 0.7rem;
 }
-.dn-workspace-nav select:focus-visible {
+.dn-workspace-nav-search:focus-visible,
+.dn-workspace-nav button:focus-visible {
   border-color: var(--dl-orange);
   outline: 2px solid color-mix(in srgb, var(--dl-orange) 28%, transparent);
 }
-
-@media (max-width: 64rem) {
-  .dn-workspace-nav {
-    left: 0.5rem;
-    width: 8.5rem;
-  }
+.dn-workspace-nav-modules {
+  display: flex;
+  gap: 0.4rem;
+  padding-bottom: 0.2rem;
+  overflow-x: auto;
 }
-
-@media (max-width: 50rem) {
-  .dn-workspace-nav {
-    position: relative;
-    top: auto;
-    left: auto;
-    width: auto;
-    margin: 4.75rem 1rem 0;
-    grid-template-columns: auto repeat(3, minmax(0, 1fr));
-    align-items: center;
-  }
+.dn-workspace-nav-module {
+  flex: 0 0 auto;
+  min-height: 2.35rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dl-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.dn-workspace-nav-module:hover,
+.dn-workspace-nav-module.is-active {
+  border-color: var(--dn-control-border);
+  background: var(--dn-control-bg);
+  color: var(--dl-fg);
+}
+.dn-workspace-nav-results {
+  display: grid;
+  gap: 1rem;
+}
+.dn-workspace-nav-series {
+  display: grid;
+  gap: 0.3rem;
+}
+.dn-workspace-nav-series h2 {
+  margin: 0;
+  color: var(--dl-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.dn-workspace-nav-document-list {
+  display: grid;
+  gap: 0.2rem;
+}
+.dn-workspace-nav-document {
+  display: grid;
+  gap: 0.12rem;
+  width: 100%;
+  min-height: 3.2rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--dl-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dn-workspace-nav-document:hover,
+.dn-workspace-nav-document.is-current {
+  border-color: var(--dn-control-border);
+  background: var(--dn-control-bg);
+}
+.dn-workspace-nav-document.is-current {
+  box-shadow: inset 3px 0 var(--dl-orange);
+}
+.dn-workspace-nav-document small {
+  font-size: 0.73rem;
+}
+.dn-workspace-nav-empty {
+  margin: 0;
+  padding: 1rem 0.65rem;
+  color: var(--dl-muted);
 }
 
 .dn-file-name {

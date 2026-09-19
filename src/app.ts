@@ -30,7 +30,7 @@
 // back to a full rebuild, since indices no longer line up cleanly enough
 // to patch in place.
 
-import { Decoration, EditorView, keymap, ViewPlugin, type DecorationSet, type KeyBinding } from "@codemirror/view";
+import { Decoration, EditorView, keymap, ViewPlugin, WidgetType, type DecorationSet, type KeyBinding } from "@codemirror/view";
 import { EditorSelection, EditorState, Prec, type Extension, type Range } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { HighlightStyle, syntaxHighlighting, syntaxTree } from "@codemirror/language";
@@ -123,6 +123,18 @@ const BASE_EXTENSIONS: Extension[] = [
  * recognisable and punctuation stays folded until the caret enters that
  * particular construct. Source remains the editor's real document; these
  * are display decorations only, so round-tripping is untouched. */
+class MarkdownMarkerWidget extends WidgetType {
+  constructor(readonly label: string, readonly className: string) { super(); }
+  eq(other: MarkdownMarkerWidget): boolean { return other.label === this.label && other.className === this.className; }
+  toDOM(): HTMLElement {
+    const marker = document.createElement("span");
+    marker.className = this.className;
+    marker.textContent = this.label;
+    marker.setAttribute("aria-hidden", "true");
+    return marker;
+  }
+}
+
 function proseMarkdownDecorations(view: EditorView): DecorationSet {
   const ranges: Range<Decoration>[] = [];
   const caret = view.state.selection.main.head;
@@ -131,6 +143,21 @@ function proseMarkdownDecorations(view: EditorView): DecorationSet {
     enter(node) {
       const parent = node.node.parent;
       const active = Boolean(parent && caret >= parent.from && caret <= parent.to);
+      const heading = /^ATXHeading([1-6])$/.exec(node.name);
+      if (heading) {
+        ranges.push(Decoration.line({ class: `dn-md-heading dn-md-heading-${heading[1]}` }).range(node.from));
+        const line = doc.lineAt(node.from).text;
+        const prefix = /^#{1,6}\s+/.exec(line)?.[0] ?? "";
+        if (prefix) ranges.push(Decoration.replace({}).range(node.from, node.from + prefix.length));
+      } else if (node.name === "ListItem") {
+        ranges.push(Decoration.line({ class: "dn-md-list-line" }).range(node.from));
+      } else if (node.name === "ListMark") {
+        const source = doc.sliceString(node.from, node.to);
+        const label = /^[-+*]$/.test(source) ? "•" : source;
+        ranges.push(Decoration.replace({ widget: new MarkdownMarkerWidget(label, "dn-md-list-marker") }).range(node.from, node.to));
+      } else if (node.name === "QuoteMark") {
+        ranges.push(Decoration.replace({ widget: new MarkdownMarkerWidget("│", "dn-md-quote-marker") }).range(node.from, node.to));
+      }
       if (!active && ["EmphasisMark", "LinkMark", "URL", "CodeMark"].includes(node.name)) {
         ranges.push(Decoration.replace({}).range(node.from, node.to));
         return;
@@ -319,6 +346,7 @@ export function mountDocument(container: HTMLElement, initialSource: string): Mo
   const foldBodyViews = new Map<number, EditorView>();
   const blockElements: HTMLElement[] = [];
   let focusedProseIndex: number | null = null;
+  let pendingProsePoint: { x: number; y: number } | null = null;
   // Front matter's own edit state has two views (decision 11): the
   // per-field form (the default) or the plain raw-YAML editor every other
   // block already has. Reset whenever a fresh edit session starts, so
@@ -400,6 +428,7 @@ export function mountDocument(container: HTMLElement, initialSource: string): Mo
     foldBodyViews.clear();
     suppressBlurCommit = false;
     focusedProseIndex = null;
+    pendingProsePoint = null;
     frontMatterRawMode = false;
     revealedOptionalTextFields = new Set();
   }
@@ -882,9 +911,10 @@ export function mountDocument(container: HTMLElement, initialSource: string): Mo
     return view;
   }
 
-  function enterEdit(index: number) {
+  function enterEdit(index: number, point: { x: number; y: number } | null = null) {
     if (focusedProseIndex !== null) return; // one non-fence block editable at a time, in this first cut
     focusedProseIndex = index;
+    pendingProsePoint = point;
     frontMatterRawMode = false;
     revealedOptionalTextFields = new Set();
     rerenderBlock(index);
@@ -2106,7 +2136,15 @@ export function mountDocument(container: HTMLElement, initialSource: string): Mo
 
       const editorText = block.kind === "prose" ? block.text.replace(/\n+$/, "") : block.text;
       const view = mountEditor(host, index, editorText, extensions);
-      queueMicrotask(() => view.focus());
+      queueMicrotask(() => {
+        const point = pendingProsePoint;
+        pendingProsePoint = null;
+        if (point) {
+          const position = view.posAtCoords(point);
+          if (position !== null) view.dispatch({ selection: EditorSelection.cursor(position) });
+        }
+        view.focus();
+      });
       return wrapper;
     }
 
@@ -2125,7 +2163,7 @@ export function mountDocument(container: HTMLElement, initialSource: string): Mo
       // its open body (or from the keyboard), while the native summary
       // remains a native disclosure control.
       if (block.kind === "fold" && (event.target as Element).closest("summary")) return;
-      enterEdit(index);
+      enterEdit(index, { x: event.clientX, y: event.clientY });
     });
     rendered.addEventListener("keydown", (event) => {
       if (event.key === "Enter") enterEdit(index);

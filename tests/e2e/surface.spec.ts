@@ -111,7 +111,7 @@ test("plain prose keeps its baseline and following content fixed while editing",
   });
   const nextBefore = await second.evaluate((element) => element.getBoundingClientRect().y);
 
-  await first.locator(".dn-block-render").click();
+  await first.locator(".dn-block-render").click({ position: { x: 4, y: 4 } });
 
   const after = await first.locator(".cm-line").first().evaluate((element) => {
     const range = document.createRange();
@@ -136,7 +136,7 @@ test("inactive inline Markdown stays folded instead of reflowing the paragraph",
   const beforeHeight = await first.evaluate((element) => element.getBoundingClientRect().height);
   const nextBefore = await second.evaluate((element) => element.getBoundingClientRect().y);
 
-  await first.locator(".dn-block-render").click();
+  await first.locator(".dn-block-render").click({ position: { x: 4, y: 4 } });
 
   await expect(first.locator(".cm-content")).not.toContainText("https://example.com");
   await expect(first.locator(".dn-md-strong")).toHaveText("carefully");
@@ -145,6 +145,41 @@ test("inactive inline Markdown stays folded instead of reflowing the paragraph",
   const nextAfter = await second.evaluate((element) => element.getBoundingClientRect().y);
   expect(Math.abs(afterHeight - beforeHeight)).toBeLessThanOrEqual(0.5);
   expect(Math.abs(nextAfter - nextBefore)).toBeLessThanOrEqual(0.5);
+});
+
+test("clicking prose places the caret where the pointer landed", async ({ page }) => {
+  await mount(page, "Alpha bravo charlie.\n");
+  const point = await page.locator(".dn-block-render p").evaluate((element) => {
+    const range = document.createRange();
+    range.setStart(element.firstChild!, 6);
+    range.setEnd(element.firstChild!, 7);
+    const box = range.getBoundingClientRect();
+    return { x: box.left, y: box.top + box.height / 2 };
+  });
+  await page.mouse.click(point.x, point.y);
+  await page.keyboard.type("X");
+  await page.locator("body").click({ position: { x: 5, y: 5 } });
+  expect(await getSource(page)).toBe("Alpha Xbravo charlie.\n");
+});
+
+test("headings and lists keep document typography while editing", async ({ page }) => {
+  await mount(page, "# A stable heading\n\n- First item\n- Second item\n\nFollowing paragraph.\n");
+  const blocks = page.locator(".dn-block");
+  const headingBefore = await blocks.nth(0).evaluate((element) => element.getBoundingClientRect());
+  const listBefore = await blocks.nth(1).evaluate((element) => element.getBoundingClientRect());
+  const followingBefore = await blocks.nth(2).evaluate((element) => element.getBoundingClientRect().y);
+
+  await blocks.nth(0).locator(".dn-block-render").click();
+  const headingAfter = await blocks.nth(0).evaluate((element) => element.getBoundingClientRect());
+  expect(Math.abs(headingAfter.height - headingBefore.height)).toBeLessThanOrEqual(0.5);
+  await page.locator("body").click({ position: { x: 5, y: 5 } });
+
+  await blocks.nth(1).locator(".dn-block-render").click();
+  await expect(blocks.nth(1).locator(".dn-md-list-marker")).toHaveCount(2);
+  const listAfter = await blocks.nth(1).evaluate((element) => element.getBoundingClientRect());
+  const followingAfter = await blocks.nth(2).evaluate((element) => element.getBoundingClientRect().y);
+  expect(Math.abs(listAfter.height - listBefore.height)).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(followingAfter - followingBefore)).toBeLessThanOrEqual(0.5);
 });
 
 test("an answer summary opens the rendered fold; editing exposes its body, not its HTML wrapper", async ({ page }) => {

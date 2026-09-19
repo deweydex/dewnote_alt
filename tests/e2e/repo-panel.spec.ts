@@ -192,14 +192,14 @@ test("a repository opens as modules, pairs practice with its tutorial, and locks
 
   const nav = page.locator(".dn-workspace-nav");
   await expect(nav).toBeVisible();
-  await expect(nav.locator(".dn-workspace-nav-module")).toHaveValue("a-module");
-  await expect(nav.locator(".dn-workspace-nav-series")).toHaveValue("First steps");
-  await expect(nav.locator(".dn-workspace-nav-page option")).toHaveCount(3);
+  await expect(nav.getByRole("tab", { name: "A Module" })).toHaveAttribute("aria-selected", "true");
+  await expect(nav.locator(".dn-workspace-nav-series h2")).toHaveText("First steps");
+  await expect(nav.locator(".dn-workspace-nav-document")).toHaveCount(3);
   await expect(page.locator(".dn-folder-toggle")).toBeDisabled();
 
   await series.locator(".dn-repo-module-page:not(.is-practice) button").first().click();
   await expect(page.locator("h1")).toHaveText("A Rule");
-  await expect(nav.locator(".dn-workspace-nav-page")).toHaveValue("tutorials/a-rule/a-rule.md");
+  await expect(nav.locator(".dn-workspace-nav-document.is-current")).toContainText("A Rule");
 });
 
 test("loading a repository lists its markdown and module files, and search filters them", async ({ page }) => {
