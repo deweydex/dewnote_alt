@@ -67,6 +67,8 @@ interface MockOptions {
   /** Include a focused practice page so the module-aware view can prove
    * it derives practice placement from `practice_for`. */
   includePractice?: boolean;
+  /** The configured working branch predates this browser session. */
+  branchAlreadyExists?: boolean;
 }
 
 /** Stubs the exact GitHub calls this slice makes, keyed by method + a
@@ -76,10 +78,24 @@ interface MockOptions {
  * decoded request body, in order, so a test can check exactly what a
  * push actually sent (whether `sha` was included at all) without
  * reaching into repo-panel.ts's own state. */
-async function mockGithub(page: Page, opts: MockOptions): Promise<{ putBodies: Record<string, unknown>[]; putPaths: string[] }> {
+interface MockCalls {
+  putBodies: Record<string, unknown>[];
+  putPaths: string[];
+  blobBodies: Record<string, unknown>[];
+  treeBodies: Record<string, unknown>[];
+  commitBodies: Record<string, unknown>[];
+  refUpdates: Record<string, unknown>[];
+}
+
+async function mockGithub(page: Page, opts: MockOptions): Promise<MockCalls> {
   let putCalls = 0;
+  let branchCreated = opts.branchAlreadyExists ?? false;
   const putBodies: Record<string, unknown>[] = [];
   const putPaths: string[] = [];
+  const blobBodies: Record<string, unknown>[] = [];
+  const treeBodies: Record<string, unknown>[] = [];
+  const commitBodies: Record<string, unknown>[] = [];
+  const refUpdates: Record<string, unknown>[] = [];
   await page.route("https://api.github.com/**", async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -113,6 +129,9 @@ async function mockGithub(page: Page, opts: MockOptions): Promise<{ putBodies: R
         });
       }
       const onBranch = url.searchParams.get("ref") === "dewnote-edits";
+      if (onBranch && /\/v\d{4}\.\d{2}\.\d{2}\.\d+\.md$/.test(path)) {
+        return route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
+      }
       if (onBranch && opts.branchContent !== undefined) {
         return fulfillJson(route, 200, { content: toBase64(opts.branchContent), sha: opts.branchContentSha ?? "branch-sha" });
       }
@@ -120,13 +139,36 @@ async function mockGithub(page: Page, opts: MockOptions): Promise<{ putBodies: R
     }
 
     if (method === "GET" && /\/git\/ref\/heads\/dewnote-edits$/.test(path)) {
-      return route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
+      return branchCreated
+        ? fulfillJson(route, 200, { object: { sha: "working-head-sha" } })
+        : route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
     }
     if (method === "GET" && /\/git\/ref\/heads\/main$/.test(path)) {
       return fulfillJson(route, 200, { object: { sha: "base-sha" } });
     }
     if (method === "POST" && /\/git\/refs$/.test(path)) {
+      branchCreated = true;
       return fulfillJson(route, 201, { ref: "refs/heads/dewnote-edits" });
+    }
+    if (method === "GET" && /\/git\/commits\/working-head-sha$/.test(path)) {
+      return fulfillJson(route, 200, { tree: { sha: "working-tree-sha" } });
+    }
+    if (method === "POST" && /\/git\/blobs$/.test(path)) {
+      const body = req.postDataJSON() as Record<string, unknown>;
+      blobBodies.push(body);
+      return fulfillJson(route, 201, { sha: `atomic-blob-${blobBodies.length}` });
+    }
+    if (method === "POST" && /\/git\/trees$/.test(path)) {
+      treeBodies.push(req.postDataJSON() as Record<string, unknown>);
+      return fulfillJson(route, 201, { sha: "atomic-tree" });
+    }
+    if (method === "POST" && /\/git\/commits$/.test(path)) {
+      commitBodies.push(req.postDataJSON() as Record<string, unknown>);
+      return fulfillJson(route, 201, { sha: "atomic-commit" });
+    }
+    if (method === "PATCH" && /\/git\/refs\/heads\/dewnote-edits$/.test(path)) {
+      refUpdates.push(req.postDataJSON() as Record<string, unknown>);
+      return fulfillJson(route, 200, { object: { sha: "atomic-commit" } });
     }
 
     if (method === "PUT" && /\/contents\//.test(path)) {
@@ -149,10 +191,10 @@ async function mockGithub(page: Page, opts: MockOptions): Promise<{ putBodies: R
 
     throw new Error(`repo-panel.spec.ts: unexpected GitHub call ${method} ${path}`);
   });
-  return { putBodies, putPaths };
+  return { putBodies, putPaths, blobBodies, treeBodies, commitBodies, refUpdates };
 }
 
-async function setup(page: Page, opts: MockOptions): Promise<{ putBodies: Record<string, unknown>[]; putPaths: string[] }> {
+async function setup(page: Page, opts: MockOptions): Promise<MockCalls> {
   // Stubbed before navigation, so anything main.ts fires on load is covered too.
   const mock = await mockGithub(page, opts);
   // window.open would try to pop a real tab; no-op it before any click reaches it.
@@ -263,6 +305,22 @@ test("opening a file renders its real content in the editor", async ({ page }) =
   await expect(page.locator(".dn-block-render").filter({ hasText: "Where it lives." })).toBeVisible();
 });
 
+test("an existing work session indexes and opens the working branch rather than stale base content", async ({ page }) => {
+  await setup(page, {
+    ...DEFAULT_OPTS,
+    branchAlreadyExists: true,
+    branchContent: "# A Rule\n\nEarlier work on this branch.\n",
+    branchContentSha: "working-file-sha",
+  });
+  await page.locator(".dn-repo-load").click();
+  await expect(page.locator(".dn-repo-status").first()).toHaveText("2 markdown files, 1 module file.");
+  await showAllFiles(page);
+  await page.locator(".dn-repo-file", { hasText: "a-rule.md" }).click();
+
+  await expect(page.locator(".dn-block-render").filter({ hasText: "Earlier work on this branch." })).toBeVisible();
+  await expect(page.locator(".dn-repo-push")).toHaveText("Push to dewnote-edits");
+});
+
 test("pushing an edit creates the working branch, commits, and offers a draft PR", async ({ page }) => {
   await setup(page, DEFAULT_OPTS);
   await page.locator(".dn-repo-load").click();
@@ -281,9 +339,9 @@ test("pushing an edit creates the working branch, commits, and offers a draft PR
   await expect(pushStatus).toContainText("https://github.com/dewlab/dewlab/pull/42");
 });
 
-test("pushing as a new version freezes the committed release and updates the live file", async ({ page }) => {
+test("pushing as a new version freezes and updates the live file in one commit", async ({ page }) => {
   const original = ["---", "title: A Rule", "version: 2026.09.15.1", "---", "", "# A Rule", "", "Original.", ""].join("\n");
-  const { putBodies, putPaths } = await setup(page, { fileContent: original, fileSha: "file-sha-1" });
+  const calls = await setup(page, { fileContent: original, fileSha: "file-sha-1" });
   await page.locator(".dn-repo-load").click();
   await showAllFiles(page);
   await page.locator(".dn-repo-file", { hasText: "a-rule.md" }).click();
@@ -302,17 +360,20 @@ test("pushing as a new version freezes the committed release and updates the liv
     .format(new Date())
     .replaceAll("-", ".");
   await expect(pushStatus).toContainText(`Pushed version ${today}.1`);
-  expect(putPaths).toEqual([
-    "tutorials/a-rule/v2026.09.15.1.md",
-    "tutorials/a-rule/a-rule.md",
-  ]);
-  expect(Buffer.from(putBodies[0]!["content"] as string, "base64").toString("utf-8")).toBe(original);
-  expect(putBodies[0]).not.toHaveProperty("sha");
-  const released = Buffer.from(putBodies[1]!["content"] as string, "base64").toString("utf-8");
+  expect(calls.putBodies).toHaveLength(0);
+  expect(calls.blobBodies).toHaveLength(2);
+  expect(Buffer.from(calls.blobBodies[0]!["content"] as string, "base64").toString("utf-8")).toBe(original);
+  const released = Buffer.from(calls.blobBodies[1]!["content"] as string, "base64").toString("utf-8");
   expect(released).toContain(`version: ${today}.1`);
   expect(released).toContain("supersedes: 2026.09.15.1");
   expect(released).toContain("Revised.");
-  expect(putBodies[1]).toHaveProperty("sha", "file-sha-1");
+  expect(calls.treeBodies).toHaveLength(1);
+  expect(calls.treeBodies[0]!["tree"]).toEqual([
+    { path: "tutorials/a-rule/v2026.09.15.1.md", mode: "100644", type: "blob", sha: "atomic-blob-1" },
+    { path: "tutorials/a-rule/a-rule.md", mode: "100644", type: "blob", sha: "atomic-blob-2" },
+  ]);
+  expect(calls.commitBodies).toHaveLength(1);
+  expect(calls.refUpdates).toEqual([{ sha: "atomic-commit", force: false }]);
 });
 
 test("a conflicting push shows both versions, and keeping mine overwrites theirs", async ({ page }) => {

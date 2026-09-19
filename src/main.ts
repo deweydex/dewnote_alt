@@ -17,6 +17,7 @@ import { todayVersion } from "./dialect.ts";
 import { activeDockContains, closeDockPanels, groupDockPanels, iconRail } from "./icon-rail.ts";
 import { mountWorkspaceNav } from "./workspace-nav.ts";
 import { mountWorkflowShell, type WorkflowShell } from "./workflow-shell.ts";
+import { setActiveStore } from "./active-store.ts";
 
 // Applied before the document mounts, not after, so there is never a
 // flash of default texture before a returning reader's own saved
@@ -83,12 +84,15 @@ function chooseSession(next: "local" | "github"): void {
   const folder = document.querySelector<HTMLButtonElement>(".dn-folder-toggle");
   const repository = document.querySelector<HTMLButtonElement>(".dn-repo-toggle");
   if (folder) {
-    folder.disabled = next === "github";
-    if (folder.disabled) folder.title = "This session is connected to GitHub. Reload to choose a local workspace instead.";
+    folder.dataset["baseDisabled"] ??= String(folder.disabled);
+    folder.dataset["baseTitle"] ??= folder.title;
+    folder.disabled = folder.dataset["baseDisabled"] === "true" || next === "github";
+    if (next === "github") folder.title = "This session is connected to GitHub. Choose Change workspace to start a local session.";
   }
   if (repository) {
+    repository.dataset["baseTitle"] ??= repository.title;
     repository.disabled = next === "local";
-    if (repository.disabled) repository.title = "This is a local session. Reload to connect a GitHub repository instead.";
+    if (repository.disabled) repository.title = "This is a local session. Choose Change workspace to connect a GitHub repository.";
   }
   document.body.dataset["workspaceSession"] = next;
 }
@@ -213,7 +217,9 @@ if (!legacyShell) {
     saveCurrent: () => fileBar.saveCurrent(),
     saveNewVersion: () => repoPanel?.pushNewVersion() ?? Promise.resolve(false),
     canSaveNewVersion: () => repoPanel?.canPushNewVersion() ?? false,
+    previewNewVersion: () => repoPanel?.previewNewVersion() ?? { error: "Open a live tutorial before creating a new version." },
     openPullRequest: () => repoPanel?.openPullRequest() ?? Promise.resolve(null),
+    listRepositoryChanges: () => repoPanel?.listChanges() ?? Promise.resolve([]),
     toggleLocation: () => workspaceNav.toggle(),
     openLocation: () => workspaceNav.open(),
     closeLocation: () => workspaceNav.close(),
@@ -232,10 +238,34 @@ if (!legacyShell) {
     exportNotebook: () => fileBar.exportNotebook(),
     exportHtml: () => fileBar.exportHtml(),
     resetWorkspace: () => {
-      // The shell has already asked whether dirty work may be discarded.
-      // Clear the unload guard so the same decision is not asked twice.
-      fileBar.markSaved();
-      window.location.reload();
+      // The shell has already handled unsaved-work confirmation. Reset
+      // the stores and identities in place so changing source is a real
+      // workflow transition, not a disguised page reload.
+      closeDockPanels();
+      setActiveStore(null);
+      folderPanel?.reset();
+      repoPanel?.reset();
+      setFileIndex([]);
+      seriesPanel.setModules([]);
+      workspaceNav.setIndex([]);
+      workspaceNav.setModules([]);
+      workspaceNav.setCurrentPath(null);
+      workspaceNav.close();
+      current.destroy();
+      current = mountDocument(page, STARTER_DOCUMENT);
+      fileBar.reset();
+      session = null;
+      delete document.body.dataset["workspaceSession"];
+      const folder = document.querySelector<HTMLButtonElement>(".dn-folder-toggle");
+      const repository = document.querySelector<HTMLButtonElement>(".dn-repo-toggle");
+      if (folder) {
+        folder.disabled = folder.dataset["baseDisabled"] === "true";
+        folder.title = folder.dataset["baseTitle"] ?? "Folder";
+      }
+      if (repository) {
+        repository.disabled = false;
+        repository.title = repository.dataset["baseTitle"] ?? "Repository";
+      }
     },
   });
   if (latestFileState) workflow.setFileState(latestFileState);

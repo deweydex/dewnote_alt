@@ -40,9 +40,13 @@ async function json(route: Route, body: unknown): Promise<void> {
   await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
 }
 
-async function stubGithub(page: Page): Promise<void> {
+async function stubGithub(page: Page, changes: unknown[] = []): Promise<void> {
   await page.route("https://api.github.com/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
+    if (/\/compare\//.test(path)) return json(route, { files: changes });
+    if (/\/git\/ref\/heads\/dewnote-edits$/.test(path)) {
+      return route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
+    }
     if (/\/git\/trees\//.test(path)) {
       return json(route, { tree: [
         { path: "tutorials/a-rule/a-rule.md", type: "blob", sha: "document-sha" },
@@ -79,6 +83,8 @@ test("a local choice asks for a real document before showing its breadcrumb", as
   await expect(page.locator(".dn-workflow-identity strong")).toHaveText("Teaching notes");
   await expect(page.locator(".dn-workflow-file-name")).toHaveText("No document selected");
   await expect(page.locator(".dn-workflow-location")).toHaveText("Choose a document");
+  await expect(page.locator(".dn-page")).toBeHidden();
+  await expect(page.locator(".dn-workflow-save-area")).toBeHidden();
   await expect(page.locator(".dn-workspace-nav")).toBeVisible();
   await expect(page.getByRole("tab", { name: "Foundations" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".dn-workspace-nav-series h2")).toHaveText("First steps");
@@ -88,10 +94,12 @@ test("a local choice asks for a real document before showing its breadcrumb", as
   await expect(page.locator(".dn-workflow-file-name")).toHaveText("tutorials/a-rule/a-rule.md");
   await expect(page.locator(".dn-workflow-location")).toContainText("Foundations › First steps › A Rule");
   await expect(page.locator(".dn-page h1")).toHaveText("A Rule");
+  await expect(page.locator(".dn-workflow-save-area")).toBeVisible();
 });
 
 test("workspace and save choices are mutually exclusive and dismiss with Escape", async ({ page }) => {
   await page.getByRole("button", { name: /Open a local folder/ }).click();
+  await page.locator(".dn-workspace-nav-document").click();
   await page.locator(".dn-workflow-menu-button").click();
   await expect(page.locator(".dn-workflow-menu")).toBeVisible();
   await expect(page.locator(".dn-workflow-menu")).toContainText("Import Jupyter notebook");
@@ -135,6 +143,33 @@ test("GitHub connection discovers modules, then yields to the document workflow"
   await page.locator(".dn-workspace-nav-document").click();
   await expect(page.locator(".dn-workflow-file-name")).toHaveText("tutorials/a-rule/a-rule.md");
   await expect(page.locator(".dn-workflow-location")).toContainText("Foundations › First steps › A Rule");
+
+  await page.locator(".dn-workflow-menu-button").click();
+  await expect(page.getByRole("button", { name: "Open a Markdown or YAML file…" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Import Jupyter notebook…" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Export standalone HTML" })).toBeVisible();
+});
+
+test("repository review reads the real branch comparison, including changes from before this session", async ({ page }) => {
+  await stubGithub(page, [
+    { filename: "courses/foundations.yaml", status: "modified", additions: 2, deletions: 1 },
+    { filename: "tutorials/new/new.md", status: "added", additions: 18, deletions: 0 },
+  ]);
+  await page.getByRole("button", { name: /Connect a GitHub repository/ }).click();
+  const repository = page.locator(".dn-repo-panel");
+  await repository.locator('input[type="password"]').fill("test-token");
+  const ownerRepo = repository.locator(".dn-repo-owner-row input");
+  await ownerRepo.nth(0).fill("deweydex");
+  await ownerRepo.nth(1).fill("dewlab");
+  await repository.locator(".dn-repo-load").click();
+
+  const changesButton = page.locator(".dn-workflow-changes");
+  await expect(changesButton).toBeVisible();
+  await changesButton.click();
+  await expect(page.locator(".dn-change-review")).toBeVisible();
+  await expect(page.locator(".dn-change-review-list li")).toHaveCount(2);
+  await expect(page.locator(".dn-change-review-list li").nth(0)).toContainText("Modified module descriptor · +2 −1");
+  await expect(page.locator(".dn-change-review-list li").nth(1)).toContainText("Added document or asset · +18 −0");
 });
 
 test("the document chooser searches across module, series, title, and path", async ({ page }) => {
@@ -152,4 +187,20 @@ test("closing repository setup returns to the source choice", async ({ page }) =
   await page.locator(".dn-repo-close").click();
   await expect(page.getByRole("heading", { name: "What are you working on?" })).toBeVisible();
   await expect(page.locator(".dn-source-choice")).toHaveCount(2);
+});
+
+test("changing workspace returns to source choice without reloading the app", async ({ page }) => {
+  await page.getByRole("button", { name: /Open a local folder/ }).click();
+  await expect(page.locator(".dn-workflow-header")).toBeVisible();
+
+  await page.locator(".dn-workflow-menu-button").click();
+  await page.getByRole("button", { name: "Change workspace…" }).click();
+
+  await expect(page.getByRole("heading", { name: "What are you working on?" })).toBeVisible();
+  await expect(page.locator(".dn-workflow-header")).toBeHidden();
+  await expect(page.locator("body")).not.toHaveAttribute("data-workspace-session", /.+/);
+  await expect(page.locator(".dn-page h1")).toHaveText("Untitled");
+
+  await page.getByRole("button", { name: /Connect a GitHub repository/ }).click();
+  await expect(page.locator(".dn-repo-panel")).toBeVisible();
 });
