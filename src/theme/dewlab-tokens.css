@@ -1,0 +1,93 @@
+/* Vendored, not written here: this is dewlab's own palette and typography
+ * tokens (assets/tutorial-style.css, the ":root" / "[data-theme=dark]" /
+ * "prefers-color-scheme" blocks only — none of that file's page-layout
+ * rules, which belong to a tutorial page, not to dewnote's own chrome).
+ * Taken from deweydex/dewlab at commit 26aad06 (2026-09-06). DECISIONS.md 7:
+ * "imported not copied" is the intent; refreshing this file by hand when
+ * dewlab's tokens change is the honest version of that until there is a
+ * build step that pulls it automatically.
+ *
+ * dewnote's own chrome (src/app.css) is layered on top of these variables
+ * and adds nothing dewlab doesn't already have a variable for, so a
+ * document previewed here is dressed the way the site would dress it.
+ */
+
+:root {
+  --dl-navy: #1b2a4a;
+  --dl-orange: #d4692a;
+
+  --dl-font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --dl-font-size: 18px;
+  --dl-line-width: 34rem;
+  --dl-link: #b8541a;
+
+  --dl-type-python: var(--dl-orange);
+  --dl-type-text: var(--dl-muted);
+  --dl-type-sql: #0d7a72;
+  --dl-type-html: #7c3aed;
+  --dl-type-css: #2563eb;
+  --dl-type-js: #b8228f;
+
+  --dl-bg: #fdfcfa;
+  --dl-fg: #1a1a1a;
+  --dl-muted: #5f6b7a;
+  --dl-rule: #e2ddd5;
+  --dl-heading: var(--dl-navy);
+  --dl-cell-bg: #f6f4f0;
+  --dl-cell-border: #ddd7cd;
+  --dl-output-bg: #fbfaf8;
+  --dl-error-fg: #9b2226;
+  --dl-error-bg: #fdf0ef;
+  --dl-pass-fg: #1f6b3f;
+  --dl-pass-bg: #edf7f0;
+  --dl-panel-bg: #ffffff;
+  --dl-shadow: rgba(27, 42, 74, 0.14);
+
+  --dl-mono: "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+:root[data-theme="dark"] {
+  --dl-link: var(--dl-orange);
+  --dl-bg: #14181f;
+  --dl-fg: #e6e3dd;
+  --dl-muted: #98a2b3;
+  --dl-rule: #2a3140;
+  --dl-heading: #b9c8e6;
+  --dl-cell-bg: #1b2129;
+  --dl-cell-border: #2f3743;
+  --dl-output-bg: #171c24;
+  --dl-error-fg: #f2999b;
+  --dl-error-bg: #2a1a1c;
+  --dl-pass-fg: #86d6a5;
+  --dl-pass-bg: #16261d;
+  --dl-panel-bg: #1b2129;
+  --dl-shadow: rgba(0, 0, 0, 0.5);
+  --dl-type-sql: #5eead4;
+  --dl-type-html: #c4b5fd;
+  --dl-type-css: #93c5fd;
+  --dl-type-js: #f0a8db;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --dl-link: var(--dl-orange);
+    --dl-bg: #14181f;
+    --dl-fg: #e6e3dd;
+    --dl-muted: #98a2b3;
+    --dl-rule: #2a3140;
+    --dl-heading: #b9c8e6;
+    --dl-cell-bg: #1b2129;
+    --dl-cell-border: #2f3743;
+    --dl-output-bg: #171c24;
+    --dl-error-fg: #f2999b;
+    --dl-error-bg: #2a1a1c;
+    --dl-pass-fg: #86d6a5;
+    --dl-pass-bg: #16261d;
+    --dl-panel-bg: #1b2129;
+    --dl-shadow: rgba(0, 0, 0, 0.5);
+    --dl-type-sql: #5eead4;
+    --dl-type-html: #c4b5fd;
+    --dl-type-css: #93c5fd;
+    --dl-type-js: #f0a8db;
+  }
+}

@@ -1,0 +1,55 @@
+:root {
+  --dn-brand-field: var(--dl-navy);
+  --dn-brand-mark: var(--dl-orange);
+}
+
+:root[data-theme="dark"] {
+  --dn-brand-field: var(--dl-orange);
+  --dn-brand-mark: var(--dl-navy);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --dn-brand-field: var(--dl-orange);
+    --dn-brand-mark: var(--dl-navy);
+  }
+}
+
+.dn-brand {
+  position: static;
+  display: block;
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  filter: drop-shadow(0 2px 8px var(--dl-shadow));
+  pointer-events: none;
+}
+
+.dn-brand svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dn-brand-field,
+.dn-brand-cut-fill {
+  fill: var(--dn-brand-field);
+}
+
+.dn-brand-mark {
+  fill: var(--dn-brand-mark);
+}
+
+.dn-brand-cut-stroke {
+  fill: none;
+  stroke: var(--dn-brand-field);
+  stroke-width: 18;
+  stroke-linecap: round;
+}
+
+@media (max-width: 34rem) {
+  .dn-brand {
+    width: 2rem;
+    height: 2rem;
+  }
+}

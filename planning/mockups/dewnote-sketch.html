@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dewnote</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Piazzolla:ital,opsz,wght@0,8..30,400;0,8..30,500;0,8..30,600;1,8..30,400&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  :root{
+    --paper:#f6f5f8; --ink:#1c1b22; --line:#dedce3; --surface:#ececf1; --surface-hi:#e2e1e8;
+    --muted:#6b6975; --accent:#3f6d63; --accent-ink:#ffffff; --accent-warm:#b8672e;
+    --shadow: 0 1px 2px rgba(28,27,34,.06), 0 12px 32px rgba(28,27,34,.10);
+    --radius: 3px;
+    --font-chrome: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#17161c; --ink:#ecebf0; --line:#322f3a; --surface:#1d1c23; --surface-hi:#26242e;
+      --muted:#9a97a6; --accent:#7bb0a3; --accent-ink:#10201c; --accent-warm:#e0a05e;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#17161c; --ink:#ecebf0; --line:#322f3a; --surface:#1d1c23; --surface-hi:#26242e;
+    --muted:#9a97a6; --accent:#7bb0a3; --accent-ink:#10201c; --accent-warm:#e0a05e;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.45);
+  }
+
+  *{ box-sizing:border-box; }
+  body{ background:var(--paper); color:var(--ink); font-family:var(--font-chrome); }
+
+  .page{ max-width:1180px; margin:0 auto; padding:3.2rem 1.5rem 5rem; }
+
+  .intro{ max-width:640px; margin:0 0 2.4rem; }
+  .eyebrow{ font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:600; }
+  .intro h1{ font-family:'Piazzolla', Georgia, serif; font-size:1.9rem; font-weight:600; margin:.5rem 0 .7rem; text-wrap:balance; letter-spacing:-.01em; }
+  .intro p{ font-size:.92rem; line-height:1.6; color:var(--muted); margin:0 0 .5rem; }
+  .intro p b{ color:var(--ink); font-weight:600; }
+  kbd{ font-family:var(--font-chrome); font-size:.72rem; background:var(--surface); border:1px solid var(--line); border-radius:3px; padding:.05rem .35rem; color:var(--muted); }
+
+  /* ---------- the window ---------- */
+  .window{
+    background:var(--surface); border:1px solid var(--line); border-radius:8px;
+    box-shadow:var(--shadow); overflow:hidden; display:flex; flex-direction:column;
+  }
+  .titlebar{
+    display:flex; align-items:center; gap:.7rem; padding:.55rem .9rem;
+    border-bottom:1px solid var(--line); background:var(--surface);
+  }
+  .dots{ display:flex; gap:.3rem; }
+  .dots span{ width:9px; height:9px; border-radius:50%; background:var(--line); }
+  .titlebar .fname{ font-size:.76rem; color:var(--muted); margin-left:.3rem; }
+  .titlebar .fname b{ color:var(--ink); font-weight:500; }
+  .titlebar .spacer{ flex:1; }
+  .chip{ font-size:.68rem; color:var(--muted); border:1px solid var(--line); border-radius:3px; padding:.15rem .45rem; }
+  .icon-btn{
+    width:26px; height:26px; display:grid; place-items:center; border-radius:4px; border:1px solid transparent;
+    background:none; color:var(--muted); cursor:pointer;
+  }
+  .icon-btn:hover{ background:var(--surface-hi); color:var(--ink); border-color:var(--line); }
+  .icon-btn.is-active{ background:var(--surface-hi); color:var(--accent); border-color:var(--line); }
+  .icon-btn svg{ width:15px; height:15px; }
+
+  .shell{ display:flex; min-height:560px; background:var(--paper); }
+
+  /* ---------- left rail: files ---------- */
+  .rail-left{
+    width:0; overflow:hidden; flex-shrink:0; border-right:1px solid var(--line);
+    background:var(--surface); transition:width .16s ease;
+  }
+  .rail-left.is-open{ width:216px; }
+  .rail-left-inner{ width:216px; padding:.9rem .7rem; }
+  .rail-label{ font-size:.64rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding:.2rem .4rem .5rem; }
+  .tree{ font-size:.79rem; }
+  .tree .mod{ color:var(--muted); padding:.3rem .4rem .15rem; margin-top:.35rem; }
+  .tree .mod:first-child{ margin-top:0; }
+  .tree a{
+    display:block; padding:.28rem .4rem .28rem 1.1rem; border-radius:4px; color:var(--ink);
+    text-decoration:none; cursor:pointer; opacity:.72;
+  }
+  .tree a:hover{ background:var(--surface-hi); opacity:1; }
+  .tree a.current{ background:var(--surface-hi); color:var(--accent); opacity:1; font-weight:500; }
+
+  /* ---------- main: the manuscript ---------- */
+  .main{ flex:1; overflow:auto; padding:2.6rem 2.2rem 4rem; display:flex; justify-content:center; }
+
+  .manuscript{
+    width:100%; max-width: var(--ms-measure, 36ch);
+    font-family: var(--ms-font-body, 'Piazzolla', Georgia, serif);
+    font-size: var(--ms-size, 18px);
+    line-height:1.62; color: var(--ms-ink, var(--ink));
+    background: var(--ms-paper, transparent);
+    transition: max-width .18s ease, font-size .18s ease, color .18s ease;
+  }
+
+  .meta-strip{ display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:1.6rem; font-family:var(--font-chrome); }
+  .pill{
+    font-size:.66rem; letter-spacing:.02em; color: var(--ms-muted, var(--muted));
+    border:1px solid var(--ms-line, var(--line)); border-radius:3px; padding:.2rem .5rem;
+  }
+  .pill b{ color: var(--ms-ink, var(--ink)); font-weight:500; }
+
+  .block{ position:relative; margin:0 0 .3rem; border-radius:4px; }
+  .block-render{ padding:.35rem .5rem; border-radius:4px; cursor:text; border:1px solid transparent; }
+  .block-render:hover{ background: var(--ms-surface, var(--surface)); }
+  .block textarea{
+    display:none; width:100%; resize:none; border:1px solid var(--ms-accent, var(--accent));
+    border-radius:4px; padding:.34rem .49rem; background: var(--ms-paper, var(--paper));
+    color: var(--ms-ink, var(--ink)); font: inherit; line-height:inherit; outline:none;
+  }
+  .block.is-editing .block-render{ display:none; }
+  .block.is-editing textarea{ display:block; }
+
+  h1.b-title{ font-size:1.55em; font-weight:600; margin:0; letter-spacing:-.01em; text-wrap:balance; }
+  .b-body{ margin:0; }
+
+  .b-math{ padding:.9rem 1rem; margin:.9rem 0 1.1rem; text-align:center; font-size:1.02em;
+    background: var(--ms-surface, var(--surface)); border-radius:4px; }
+  .frac{ display:inline-flex; flex-direction:column; vertical-align:middle; margin:0 .15em; text-align:center; }
+  .frac .num, .frac .den{ padding:0 .2em; }
+  .frac .num{ border-bottom:1px solid currentColor; }
+  .math-i{ font-style:italic; font-family:'Piazzolla', Georgia, serif; }
+
+  /* add-block control */
+  .add-gap{ position:relative; height:1.4rem; margin:.1rem 0; }
+  .add-gap::before{
+    content:""; position:absolute; left:0; right:0; top:50%; height:1px;
+    background:var(--ms-line, var(--line)); opacity:0; transition:opacity .12s;
+  }
+  .add-gap:hover::before, .add-gap.menu-open::before{ opacity:1; }
+  .add-btn{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:22px; height:22px; border-radius:50%; border:1px solid var(--ms-line, var(--line));
+    background: var(--ms-paper, var(--paper)); color: var(--ms-muted, var(--muted));
+    display:grid; place-items:center; opacity:0; pointer-events:none; cursor:pointer;
+    transition:opacity .12s, color .12s, border-color .12s;
+    font-family:var(--font-chrome); font-size:.9rem; line-height:1;
+  }
+  .add-gap:hover .add-btn, .add-gap.menu-open .add-btn, .add-btn:focus-visible{
+    opacity:1; pointer-events:auto;
+  }
+  .add-btn:hover, .add-btn:focus-visible{ color:var(--ms-accent, var(--accent)); border-color:var(--ms-accent, var(--accent)); outline:none; }
+  .add-menu{
+    position:absolute; left:50%; top:100%; transform:translate(-50%,4px);
+    background:var(--surface); border:1px solid var(--line); border-radius:6px; box-shadow:var(--shadow);
+    padding:.3rem; display:none; z-index:5; min-width:132px; font-family:var(--font-chrome);
+  }
+  .add-gap.menu-open .add-menu{ display:block; }
+  .add-menu button{
+    display:block; width:100%; text-align:left; background:none; border:none; color:var(--ink);
+    font:inherit; font-size:.76rem; padding:.32rem .5rem; border-radius:4px; cursor:pointer;
+  }
+  .add-menu button:hover{ background:var(--surface-hi); color:var(--accent); }
+
+  /* code cell */
+  .cell{
+    margin:1.1rem 0; border:1px solid var(--ms-line, var(--line)); border-radius:5px; overflow:hidden;
+    background: var(--ms-paper, var(--paper));
+  }
+  .cell-head{
+    display:flex; align-items:center; gap:.5rem; padding:.4rem .6rem;
+    background: var(--ms-surface, var(--surface)); border-bottom:1px solid var(--ms-line, var(--line));
+    font-family:var(--font-chrome); font-size:.7rem; color: var(--ms-muted, var(--muted));
+  }
+  .cell-head .tag{ color: var(--ms-accent, var(--accent)); font-weight:600; }
+  .cell-head .spacer{ flex:1; }
+  .cell-tools{ display:flex; gap:.15rem; opacity:0; transition:opacity .12s; }
+  .cell:hover .cell-tools, .cell:focus-within .cell-tools{ opacity:1; }
+  .cell-tools button{
+    width:20px; height:20px; border:none; background:none; color: var(--ms-muted, var(--muted));
+    border-radius:3px; cursor:pointer; display:grid; place-items:center;
+  }
+  .cell-tools button:hover{ background: var(--ms-surface-hi, var(--surface-hi)); color: var(--ms-accent, var(--accent)); }
+  .run-btn{
+    width:20px; height:20px; border-radius:3px; border:none; cursor:pointer; display:grid; place-items:center;
+    background: var(--ms-accent, var(--accent)); color:#fff; opacity:.85;
+  }
+  .run-btn:hover{ opacity:1; }
+  .cell.is-running .run-btn{ background: var(--ms-accent-warm, var(--accent-warm)); }
+  .cell-code{
+    font-family:var(--font-chrome); font-size:.83rem; line-height:1.6; padding:.75rem .9rem; overflow-x:auto;
+    outline:none; cursor:text;
+  }
+  .cell-code:focus{ background: var(--ms-surface, var(--surface)); box-shadow: inset 2px 0 0 var(--ms-accent, var(--accent)); }
+  .tok-kw{ color: var(--ms-accent, var(--accent)); }
+  .tok-str{ color: var(--ms-accent-warm, var(--accent-warm)); }
+  .cell-output{
+    display:none; border-top:1px dashed var(--ms-line, var(--line)); padding:.65rem .9rem;
+    font-family:var(--font-chrome); font-size:.76rem;
+  }
+  .cell.has-run .cell-output{ display:block; }
+  table.out{ border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  table.out th, table.out td{ padding:.2rem .6rem; text-align:right; border-bottom:1px solid var(--ms-line, var(--line)); }
+  table.out th:first-child, table.out td:first-child{ text-align:left; }
+  table.out th{ color: var(--ms-muted, var(--muted)); font-weight:500; }
+
+  /* hint fold */
+  details.fold{
+    margin:.9rem 0; border:1px solid var(--ms-line, var(--line)); border-radius:4px;
+    background: var(--ms-surface, var(--surface));
+  }
+  details.fold summary{
+    padding:.4rem .65rem; font-family:var(--font-chrome); font-size:.72rem;
+    letter-spacing:.06em; text-transform:uppercase; color: var(--ms-accent, var(--accent));
+    cursor:pointer; list-style:none;
+  }
+  details.fold summary::-webkit-details-marker{ display:none; }
+  details.fold summary::before{ content:"▸ "; }
+  details.fold[open] summary::before{ content:"▾ "; }
+  details.fold .fold-body{ padding:0 .8rem .8rem; font-size:.92rem; }
+  details.fold .block{ margin:0; }
+  details.fold .block-render.fold-body{ padding:0 .8rem .8rem; }
+  details.fold .block textarea.fold-body{ margin:0 .8rem .8rem; width:calc(100% - 1.6rem); }
+
+  /* ---------- right rail: settings ---------- */
+  .rail-right{
+    width:0; overflow:hidden; flex-shrink:0; border-left:1px solid var(--line);
+    background:var(--surface); transition:width .16s ease;
+  }
+  .rail-right.is-open{ width:248px; }
+  .rail-right-inner{ width:248px; padding:1rem .95rem 1.5rem; font-size:.78rem; }
+  .rail-right h2{ font-size:.66rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 .1rem; }
+  .rail-right .note{ color:var(--muted); font-size:.72rem; line-height:1.5; margin:.15rem 0 1.1rem; }
+  .field{ margin-bottom:1.05rem; }
+  .field label{ display:flex; justify-content:space-between; color:var(--muted); font-size:.71rem; margin-bottom:.35rem; }
+  .field label .val{ color:var(--ink); font-variant-numeric:tabular-nums; }
+  input[type=range]{
+    width:100%; -webkit-appearance:none; height:2px; background:var(--line); border-radius:2px; outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:var(--accent);
+    cursor:pointer; border:2px solid var(--surface);
+  }
+  select{
+    width:100%; font:inherit; font-size:.76rem; padding:.35rem .4rem; background:var(--paper);
+    color:var(--ink); border:1px solid var(--line); border-radius:4px;
+  }
+  .presets{ display:flex; flex-direction:column; gap:.4rem; margin-bottom:1.2rem; }
+  .preset-btn{
+    display:flex; align-items:center; gap:.5rem; text-align:left; padding:.45rem .55rem;
+    border:1px solid var(--line); border-radius:5px; background:var(--paper); color:var(--ink);
+    font:inherit; font-size:.78rem; cursor:pointer;
+  }
+  .preset-btn .swatch{ width:14px; height:14px; border-radius:3px; flex-shrink:0; border:1px solid var(--line); }
+  .preset-btn:hover{ border-color:var(--accent); }
+  .preset-btn.is-active{ border-color:var(--accent); background:var(--surface-hi); }
+  .preset-btn small{ display:block; color:var(--muted); font-size:.66rem; margin-top:.05rem; }
+  hr.sep{ border:none; border-top:1px solid var(--line); margin:1.1rem 0; }
+</style>
+</head>
+<body>
+
+
+<div class="page">
+  <div class="intro">
+    <div class="eyebrow">dewnote — design sketch, 06 Sep 2026</div>
+    <h1>One document, dressed three ways</h1>
+    <p>The window below is a single manuscript. The settings rail (<kbd>⚙</kbd>, open by
+      default) doesn't pick a theme so much as tune variables that already exist —
+      <b>Workshop</b> is dewnote's own resting look, <b>Manuscript</b> reproduces dewlab's
+      real tokens for an honest preview, <b>Chalkboard</b> commits to dark. Drag the
+      sliders after choosing one; nothing here is a fixed screenshot.</p>
+    <p>Click the heading, the paragraph, or the hint to edit its source. The code
+      line has no separate render mode to click into — it's a live editor already,
+      the same as it would be behind CodeMirror. Hover a gap between blocks for the
+      add control, hover the cell for its own quiet toolbar, and press ▸ to re-run it.</p>
+  </div>
+
+  <div class="window">
+    <div class="titlebar">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="fname">tutorials/computational-methods/filtering-rows/ — <b>filtering-rows.md</b></div>
+      <div class="spacer"></div>
+      <div class="chip">⌘K</div>
+      <button class="icon-btn" id="toggle-files" title="Files" onclick="toggleRail('left')">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 5h5l1.5 2H17v9H3z"/></svg>
+      </button>
+      <button class="icon-btn is-active" id="toggle-settings" title="Settings" onclick="toggleRail('right')">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="2.6"/><path d="M10 3v2.2M10 14.8V17M17 10h-2.2M5.2 10H3M14.9 5.1l-1.5 1.5M6.6 13.4l-1.5 1.5M14.9 14.9l-1.5-1.5M6.6 6.6L5.1 5.1"/></svg>
+      </button>
+    </div>
+
+    <div class="shell">
+      <nav class="rail-left" id="rail-left">
+        <div class="rail-left-inner">
+          <div class="rail-label">Tutorials</div>
+          <div class="tree">
+            <div class="mod">computational-methods</div>
+            <a>grid-of-numbers</a>
+            <a class="current">filtering-rows</a>
+            <a>sorting-a-table</a>
+            <div class="mod">mit-pdp-maths-prog-integration</div>
+            <a>first-steps</a>
+            <a>storing-and-computing</a>
+          </div>
+        </div>
+      </nav>
+
+      <main class="main">
+        <div class="manuscript" id="manuscript">
+          <div class="meta-strip">
+            <span class="pill">module <b>computational-methods</b></span>
+            <span class="pill">series <b>Working with Tables</b></span>
+            <span class="pill">v <b>2026.09.07.1</b></span>
+            <span class="pill">status <b>draft</b></span>
+          </div>
+
+          <div class="block" id="b-title">
+            <div class="block-render" tabindex="0" onclick="edit('b-title')" onkeydown="if(event.key==='Enter')edit('b-title')">
+              <h1 class="b-title">Filtering a table by a condition</h1>
+            </div>
+            <textarea rows="1" onblur="unedit('b-title')"># Filtering a table by a condition</textarea>
+          </div>
+
+          <div class="add-gap"><button class="add-btn" onclick="toggleMenu(this)">+</button>
+            <div class="add-menu">
+              <button onclick="insertParagraph(this)">Paragraph</button>
+              <button onclick="closeMenus()">Code cell</button>
+              <button onclick="closeMenus()">Hint fold</button>
+              <button onclick="closeMenus()">Image</button>
+            </div>
+          </div>
+
+          <div class="block" id="b-p1">
+            <div class="block-render" tabindex="0" onclick="edit('b-p1')" onkeydown="if(event.key==='Enter')edit('b-p1')">
+              <p class="b-body">A table rarely comes filtered the way you need it. The
+              readings below are hourly recordings from one weather station. The task
+              here is to keep only the evening readings that ran warm.</p>
+            </div>
+            <textarea rows="3" onblur="unedit('b-p1')">A table rarely comes filtered the way you need it. The readings below are hourly recordings from one weather station. The task here is to keep only the evening readings that ran warm.</textarea>
+          </div>
+
+          <div class="b-math">
+            <span class="math-i">evening</span><sub>&gt;14</sub> = { <span class="math-i">r</span> ∈ <span class="math-i">R</span> : <span class="math-i">r</span><sub>evening</sub> &gt; 14 }
+          </div>
+
+          <div class="cell has-run" id="cell1">
+            <div class="cell-head">
+              <span class="tag">python exec</span><span>id: filter-evening</span>
+              <div class="spacer"></div>
+              <div class="cell-tools">
+                <button title="Hint set">?</button>
+                <button title="Duplicate">⧉</button>
+                <button title="Delete">✕</button>
+              </div>
+              <button class="run-btn" title="Run" onclick="runCell(this)">
+                <svg viewBox="0 0 14 14" width="10" height="10" fill="currentColor"><path d="M3 2l9 5-9 5z"/></svg>
+              </button>
+            </div>
+            <div class="cell-code" contenteditable="true" spellcheck="false">readings[readings[<span class="tok-str">"evening"</span>] &gt; 14]</div>
+            <div class="cell-output">
+              <table class="out">
+                <tr><th>hour</th><th>morning</th><th>evening</th></tr>
+                <tr><td>14:00</td><td>13.1</td><td>16.4</td></tr>
+                <tr><td>18:00</td><td>12.8</td><td>15.9</td></tr>
+              </table>
+            </div>
+          </div>
+
+          <div class="add-gap"><button class="add-btn" onclick="toggleMenu(this)">+</button>
+            <div class="add-menu">
+              <button onclick="insertParagraph(this)">Paragraph</button>
+              <button onclick="closeMenus()">Code cell</button>
+              <button onclick="closeMenus()">Hint fold</button>
+              <button onclick="closeMenus()">Image</button>
+            </div>
+          </div>
+
+          <details class="fold" open>
+            <summary>hint</summary>
+            <div class="block" id="b-hint1">
+              <div class="block-render fold-body" tabindex="0" onclick="edit('b-hint1')" onkeydown="if(event.key==='Enter')edit('b-hint1')">Compare each evening reading to 14 before deciding whether to keep the row.</div>
+              <textarea class="fold-body" rows="2" onblur="unedit('b-hint1')">Compare each evening reading to 14 before deciding whether to keep the row.</textarea>
+            </div>
+          </details>
+        </div>
+      </main>
+
+      <aside class="rail-right is-open" id="rail-right">
+        <div class="rail-right-inner">
+          <h2>Preset</h2>
+          <p class="note">Each preset sets every field below at once. Move a slider afterward and it stops following the preset — that's the point.</p>
+          <div class="presets" id="presets">
+            <button class="preset-btn is-active" data-preset="workshop" onclick="setPreset('workshop')">
+              <span class="swatch" style="background:#3f6d63"></span>
+              <span>Workshop<small>dewnote's own resting look</small></span>
+            </button>
+            <button class="preset-btn" data-preset="manuscript" onclick="setPreset('manuscript')">
+              <span class="swatch" style="background:#1b2a4a"></span>
+              <span>Manuscript<small>dewlab's real tokens</small></span>
+            </button>
+            <button class="preset-btn" data-preset="chalkboard" onclick="setPreset('chalkboard')">
+              <span class="swatch" style="background:#15171a;border-color:#8fbfb2"></span>
+              <span>Chalkboard<small>dark, board-at-the-front</small></span>
+            </button>
+          </div>
+
+          <hr class="sep">
+          <h2>Type</h2>
+          <div class="field">
+            <label>Body face</label>
+            <select id="sel-font" onchange="applyFamily(this.value)">
+              <option value="'Piazzolla', Georgia, serif">Piazzolla</option>
+              <option value="Georgia, 'Iowan Old Style', 'Times New Roman', serif">Georgia</option>
+              <option value="ui-monospace, 'IBM Plex Mono', monospace">Monospace</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Size <span class="val" id="val-size">18px</span></label>
+            <input type="range" min="15" max="22" value="18" oninput="applySize(this.value)">
+          </div>
+          <div class="field">
+            <label>Measure <span class="val" id="val-measure">36ch</span></label>
+            <input type="range" min="28" max="44" value="36" oninput="applyMeasure(this.value)">
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+  const PRESETS = {
+    workshop:   { paper:'#f6f5f8', ink:'#1c1b22', line:'#dedce3', surface:'#ececf1', surfaceHi:'#e2e1e8', muted:'#6b6975', accent:'#3f6d63', accentWarm:'#b8672e', font:"'Piazzolla', Georgia, serif", size:18, measure:36 },
+    manuscript: { paper:'#fdfcfa', ink:'#1a1a1a', line:'#e4dfd3', surface:'#f6f4f0', surfaceHi:'#efeae0', muted:'#7a7568', accent:'#1b2a4a', accentWarm:'#d4692a', font:"Georgia, 'Iowan Old Style', 'Times New Roman', serif", size:18, measure:34 },
+    chalkboard: { paper:'#15171a', ink:'#ece8de', line:'#33363b', surface:'#1d2024', surfaceHi:'#262a2f', muted:'#9b9890', accent:'#8fbfb2', accentWarm:'#e3a65c', font:"'Piazzolla', Georgia, serif", size:19, measure:32 },
+  };
+  const fontOptions = {
+    "'Piazzolla', Georgia, serif": "'Piazzolla', Georgia, serif",
+    "Georgia, 'Iowan Old Style', 'Times New Roman', serif": "Georgia, 'Iowan Old Style', 'Times New Roman', serif",
+  };
+
+  function ms(){ return document.getElementById('manuscript'); }
+
+  function setPreset(name){
+    const p = PRESETS[name];
+    const el = ms();
+    el.style.setProperty('--ms-paper', p.paper);
+    el.style.setProperty('--ms-ink', p.ink);
+    el.style.setProperty('--ms-line', p.line);
+    el.style.setProperty('--ms-surface', p.surface);
+    el.style.setProperty('--ms-surface-hi', p.surfaceHi);
+    el.style.setProperty('--ms-muted', p.muted);
+    el.style.setProperty('--ms-accent', p.accent);
+    el.style.setProperty('--ms-accent-warm', p.accentWarm);
+    el.style.setProperty('--ms-font-body', p.font);
+    el.style.setProperty('--ms-size', p.size + 'px');
+    el.style.setProperty('--ms-measure', p.measure + 'ch');
+
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('is-active', b.dataset.preset === name));
+    document.getElementById('val-size').textContent = p.size + 'px';
+    document.getElementById('val-measure').textContent = p.measure + 'ch';
+    document.querySelectorAll('#rail-right input[type=range]')[0].value = p.size;
+    document.querySelectorAll('#rail-right input[type=range]')[1].value = p.measure;
+    const sel = document.getElementById('sel-font');
+    sel.value = fontOptions[p.font] ? p.font : sel.options[0].value;
+  }
+
+  function clearPresetChoice(){
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('is-active'));
+  }
+
+  function applySize(v){ ms().style.setProperty('--ms-size', v + 'px'); document.getElementById('val-size').textContent = v + 'px'; clearPresetChoice(); }
+  function applyMeasure(v){ ms().style.setProperty('--ms-measure', v + 'ch'); document.getElementById('val-measure').textContent = v + 'ch'; clearPresetChoice(); }
+  function applyFamily(v){ ms().style.setProperty('--ms-font-body', v); clearPresetChoice(); }
+
+  function toggleRail(side){
+    const el = document.getElementById('rail-' + side);
+    const btn = document.getElementById('toggle-' + (side === 'left' ? 'files' : 'settings'));
+    el.classList.toggle('is-open');
+    btn.classList.toggle('is-active', el.classList.contains('is-open'));
+  }
+
+  function edit(id){
+    document.getElementById(id).classList.add('is-editing');
+    const ta = document.querySelector('#' + id + ' textarea');
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  }
+  function unedit(id){ document.getElementById(id).classList.remove('is-editing'); }
+
+  function toggleMenu(btn){
+    const gap = btn.closest('.add-gap');
+    const wasOpen = gap.classList.contains('menu-open');
+    closeMenus();
+    if (!wasOpen) gap.classList.add('menu-open');
+  }
+  function closeMenus(){ document.querySelectorAll('.add-gap.menu-open').forEach(g => g.classList.remove('menu-open')); }
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.add-gap')) closeMenus();
+  });
+
+  let freshId = 0;
+  function insertParagraph(btn){
+    const gap = btn.closest('.add-gap');
+    closeMenus();
+    const id = 'b-new-' + (++freshId);
+    const wrap = document.createElement('div');
+    wrap.className = 'block is-editing';
+    wrap.id = id;
+    wrap.innerHTML = `<div class="block-render" tabindex="0" onclick="edit('${id}')"><p class="b-body"></p></div>` +
+      `<textarea rows="2" placeholder="Write a paragraph…" onblur="unedit('${id}')"></textarea>`;
+    gap.after(wrap);
+    const ta = wrap.querySelector('textarea');
+    ta.focus();
+  }
+
+  function runCell(btn){
+    const cell = btn.closest('.cell');
+    cell.classList.add('is-running');
+    cell.classList.remove('has-run');
+    setTimeout(() => {
+      cell.classList.remove('is-running');
+      cell.classList.add('has-run');
+    }, 550);
+  }
+</script>
+
+</body>
+</html>

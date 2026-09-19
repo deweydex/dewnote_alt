@@ -1,0 +1,22 @@
+# Weekly version-update PRs, checked by the same tests.yml gate every
+# other change goes through — so a bump that changes behaviour (js-yaml
+# 4 to 5 did, mid-`bun add`, on 2026-09-07: caught here by hand, filed
+# as a decision rather than absorbed silently) shows up red on its own
+# PR instead of riding in unnoticed on an unrelated commit. See
+# DECISIONS.md for that entry and for why the plan wanted this.
+version: 2
+updates:
+  - package-ecosystem: "bun"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      codemirror:
+        patterns:
+          - "@codemirror/*"
+          - "@lezer/*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

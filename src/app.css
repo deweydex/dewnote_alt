@@ -1,0 +1,3705 @@
+/* dewnote's own chrome, layered on the vendored tokens in
+ * src/theme/dewlab-tokens.css (decision 7: "imported not copied"). Nothing
+ * here invents a colour or a font that isn't already one of dewlab's
+ * variables — a document previewed here should look like the site because
+ * it is dressed the same way (plan §5.3).
+ */
+
+html,
+body {
+  margin: 0;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+}
+
+/* ------------------------------------------ progressive workspace shell */
+
+/* The document is the resting state. The old controls remain mounted as
+   operation owners, but the workflow shell is their only visible entry
+   point and exposes one decision surface at a time. */
+.dn-progressive .dn-file-bar,
+.dn-progressive .dn-icon-rail,
+.dn-progressive .dn-file-action-rail,
+.dn-progressive .dn-inspector-resizer {
+  display: none !important;
+}
+
+.dn-progressive .dn-page {
+  padding-top: 7.5rem;
+}
+
+.dn-source-gate[hidden],
+.dn-workflow-header[hidden],
+.dn-workflow-popover[hidden],
+.dn-workflow-toast[hidden],
+.dn-change-review[hidden],
+.dn-progressive .dn-workspace-nav[hidden] {
+  display: none !important;
+}
+
+.dn-source-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  overflow-y: auto;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+}
+
+.dn-source-gate-inner {
+  width: min(52rem, 100%);
+}
+
+.dn-source-brand {
+  margin: 0 0 2.5rem;
+  color: var(--dl-orange);
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.dn-source-gate h1 {
+  margin: 0;
+  color: var(--dl-heading);
+  font-size: clamp(2.15rem, 7vw, 4.7rem);
+  line-height: 0.98;
+}
+
+.dn-source-gate h1 + p {
+  max-width: 42rem;
+  margin: 1.2rem 0 2.25rem;
+  color: var(--dl-muted);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.dn-source-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.dn-source-choice {
+  min-height: 10rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.75rem;
+  padding: 1.35rem;
+  border: 1px solid var(--dn-control-border);
+  border-radius: 14px;
+  background: var(--dn-control-bg);
+  color: var(--dl-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dn-source-choice strong {
+  color: var(--dl-heading);
+  font-size: 1.25rem;
+}
+
+.dn-source-choice span {
+  color: var(--dl-muted);
+  line-height: 1.45;
+}
+
+.dn-source-choice:hover,
+.dn-source-choice:focus-visible {
+  border-color: var(--dl-orange);
+  outline: 3px solid color-mix(in srgb, var(--dl-orange) 20%, transparent);
+}
+
+.dn-source-gate.is-choosing-repository .dn-source-gate-inner {
+  visibility: hidden;
+}
+
+/* Repository connection is the detail step of the initial GitHub choice,
+   so it temporarily occupies the same stage rather than opening as an
+   unrelated sidebar beside it. */
+.dn-progressive.dn-choosing-repository .dn-repo-panel.dn-docked-panel {
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: 50% !important;
+  width: min(42rem, calc(100vw - 2rem)) !important;
+  max-width: none !important;
+  height: min(46rem, calc(100vh - 2rem)) !important;
+  z-index: 120 !important;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--dn-control-border);
+  border-radius: 14px;
+  box-shadow: 0 20px 70px var(--dl-shadow);
+}
+
+.dn-workflow-header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 70;
+  min-height: 4.25rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 0.65rem 1rem;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--dl-rule);
+  background: color-mix(in srgb, var(--dl-bg) 94%, transparent);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  backdrop-filter: blur(14px);
+}
+
+.dn-workflow-left,
+.dn-workflow-save-area {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.dn-workflow-save-area {
+  justify-content: flex-end;
+}
+
+.dn-workflow-identity {
+  min-width: 0;
+  display: grid;
+  line-height: 1.18;
+}
+
+.dn-workflow-document {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  line-height: 1.15;
+}
+
+.dn-workflow-file-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--dl-heading);
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dn-workflow-identity strong,
+.dn-workflow-identity span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dn-workflow-identity span,
+.dn-workflow-save-state {
+  color: var(--dl-muted);
+  font-size: 0.74rem;
+}
+
+.dn-workflow-save-state.is-dirty {
+  color: var(--dl-orange);
+}
+
+.dn-workflow-header button,
+.dn-workflow-popover button,
+.dn-workflow-toast button,
+.dn-change-review button {
+  min-height: 2.75rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--dn-control-border);
+  border-radius: 8px;
+  background: var(--dn-control-bg);
+  color: var(--dl-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.dn-workflow-header button:hover,
+.dn-workflow-header button:focus-visible,
+.dn-workflow-popover button:hover,
+.dn-workflow-popover button:focus-visible,
+.dn-workflow-toast button:hover,
+.dn-workflow-toast button:focus-visible,
+.dn-change-review button:hover,
+.dn-change-review button:focus-visible {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+  outline: 2px solid color-mix(in srgb, var(--dl-orange) 22%, transparent);
+}
+
+.dn-workflow-menu-button {
+  width: 2.75rem;
+  padding-inline: 0 !important;
+  font-size: 1.15rem !important;
+}
+
+.dn-workflow-location {
+  min-height: 1.7rem !important;
+  padding: 0.15rem 0.35rem !important;
+  overflow: hidden;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--dl-muted) !important;
+  font-size: 0.76rem !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dn-workflow-location:hover,
+.dn-workflow-location:focus-visible {
+  color: var(--dl-fg) !important;
+  border-color: var(--dn-control-border) !important;
+}
+
+.dn-workflow-save,
+.dn-workflow-primary {
+  border-color: var(--dl-orange) !important;
+  background: var(--dl-orange) !important;
+  color: var(--dl-bg) !important;
+  font-weight: 750 !important;
+}
+
+.dn-workflow-save-more {
+  width: 2.75rem;
+  margin-left: -0.66rem;
+  padding-inline: 0 !important;
+  border-left-color: color-mix(in srgb, var(--dl-bg) 35%, transparent) !important;
+  border-radius: 0 8px 8px 0 !important;
+}
+
+.dn-workflow-save {
+  border-radius: 8px 0 0 8px !important;
+}
+
+.dn-workflow-popover {
+  position: fixed;
+  z-index: 80;
+  display: grid;
+  gap: 0.3rem;
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 6rem);
+  padding: 0.65rem;
+  overflow-y: auto;
+  border: 1px solid var(--dn-control-border);
+  border-radius: 10px;
+  background: var(--dl-panel-bg);
+  box-shadow: 0 14px 40px var(--dl-shadow);
+  font-family: var(--dl-font-family);
+}
+
+.dn-workflow-menu {
+  top: 4.6rem;
+  left: 1rem;
+}
+
+.dn-workflow-save-menu {
+  top: 4.6rem;
+  right: 1rem;
+}
+
+.dn-workflow-popover button {
+  width: 100%;
+  border-color: transparent;
+  background: transparent;
+  text-align: left;
+}
+
+.dn-workflow-menu-section {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.2rem 0 0.45rem;
+  border-bottom: 1px solid var(--dl-rule);
+}
+
+.dn-workflow-menu-section:last-child {
+  border-bottom: 0;
+}
+
+.dn-workflow-menu-section h2 {
+  margin: 0;
+  padding: 0.35rem 0.8rem 0.15rem;
+  color: var(--dl-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dn-workflow-current-file {
+  margin: 0 0 0.35rem;
+  padding: 0.55rem 0.8rem 0.75rem;
+  overflow: hidden;
+  border-bottom: 1px solid var(--dl-rule);
+  color: var(--dl-muted);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dn-workflow-change-workspace {
+  margin-top: 0.35rem;
+  border-top: 1px solid var(--dl-rule) !important;
+  border-radius: 0 !important;
+}
+
+/* The three Dewlab breadcrumbs are a chooser only while requested. */
+.dn-progressive .dn-workspace-nav {
+  top: 4.6rem;
+  left: 50%;
+  z-index: 80;
+  width: min(46rem, calc(100vw - 2rem));
+  grid-template-columns: auto repeat(3, minmax(0, 1fr)) auto;
+  transform: translateX(-50%);
+  box-shadow: 0 14px 40px var(--dl-shadow);
+}
+
+.dn-workspace-nav-open {
+  min-height: 2.35rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--dl-orange);
+  border-radius: 6px;
+  background: var(--dl-orange);
+  color: var(--dl-bg);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dn-workflow-toast {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 75;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: min(34rem, calc(100vw - 2rem));
+  padding: 0.65rem 0.75rem 0.65rem 1rem;
+  border: 1px solid var(--dn-control-border);
+  border-radius: 12px;
+  background: var(--dl-panel-bg);
+  box-shadow: 0 10px 32px var(--dl-shadow);
+  font-family: var(--dl-font-family);
+}
+
+.dn-workflow-toast-dismiss {
+  min-width: 2.25rem !important;
+  padding-inline: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+.dn-change-review {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  overflow-y: auto;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+}
+
+.dn-change-review > header {
+  min-height: 4.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--dl-rule);
+}
+
+.dn-change-review > main {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 4rem 1.25rem;
+}
+
+.dn-change-review-list {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0;
+  list-style: none;
+}
+
+.dn-change-review-list li {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.9rem;
+  border: 1px solid var(--dl-rule);
+  border-radius: 8px;
+  background: var(--dn-control-bg);
+}
+
+.dn-change-review-list span {
+  color: var(--dl-muted);
+  font-size: 0.8rem;
+}
+
+.dn-change-review-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 2rem;
+}
+
+/* Old operation panels become temporary right-hand sheets. They do not
+   resize or displace the document and dockPanel still guarantees that
+   only one is visible. */
+.dn-progressive:not(.dn-choosing-repository) .dn-docked-panel {
+  top: 4.25rem !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: auto !important;
+  width: min(28rem, calc(100vw - 1rem)) !important;
+  max-width: none !important;
+  height: auto !important;
+  z-index: 65 !important;
+  border-left: 1px solid var(--dn-control-border);
+  box-shadow: -12px 0 40px var(--dl-shadow);
+}
+
+@media (max-width: 48rem) {
+  .dn-source-choices {
+    grid-template-columns: 1fr;
+  }
+
+  .dn-workflow-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dn-workflow-location {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .dn-progressive .dn-page {
+    padding-top: 10rem;
+  }
+
+  .dn-progressive .dn-workspace-nav {
+    top: 7.75rem;
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    margin: 0;
+    grid-template-columns: 1fr;
+    transform: none;
+  }
+
+  .dn-workflow-save-state {
+    display: none;
+  }
+
+  .dn-progressive:not(.dn-choosing-repository) .dn-docked-panel {
+    top: 7.5rem !important;
+    width: 100vw !important;
+  }
+}
+
+/* The settings panel's own layer on top of dewlab's tokens (settings.ts) —
+ * a cell's background blended toward the page background as
+ * --dn-cell-tint falls from 1 (dewlab's own tint, the default) to 0
+ * (flat, no tint at all). Everywhere else in this file that wants a
+ * cell's background uses these, never --dl-cell-bg/--dl-output-bg
+ * directly, so "Tinted cells" in Settings actually reaches every one of
+ * them from a single place. */
+:root {
+  --dn-cell-bg: color-mix(in srgb, var(--dl-cell-bg) calc(var(--dn-cell-tint, 1) * 100%), var(--dl-bg));
+  --dn-output-bg: color-mix(in srgb, var(--dl-output-bg) calc(var(--dn-cell-tint, 1) * 100%), var(--dl-bg));
+}
+
+.dn-page {
+  /* The positioning context for the one block-control cluster, which is
+     absolutely placed against this rather than appended into any block —
+     so moving it between blocks never touches the document's own DOM. */
+  position: relative;
+  max-width: var(--dl-line-width);
+  margin: 0 auto;
+  /* Left padding leaves the cluster a margin to sit in, outside the
+     column the text runs in. It used to sit on the *right*, where on a
+     narrow screen it landed underneath the icon rail — every block's grip
+     stacked on a rail button and flush to the screen edge. */
+  padding: var(--dn-page-padding, 3rem 1.25rem 8rem);
+  padding-inline: var(--dn-gutter, 3rem);
+  font-family: var(--dl-font-family);
+  font-size: var(--dl-font-size);
+  line-height: var(--dl-line-height, 1.62);
+}
+
+/* ---------------------------------------------------------------- blocks */
+
+.dn-block {
+  position: relative;
+}
+/* Space between one block and the next — the reader's own
+   `paragraphSpacing` (settings.ts). On the block rather than in the
+   prose, so it applies the same whether the block is a paragraph, a
+   cell, a fold or a maths display. */
+.dn-block + .dn-block {
+  margin-top: var(--dn-block-gap, 0.75rem);
+}
+
+.dn-block-render {
+  cursor: text;
+  border-radius: 4px;
+  outline: none;
+  min-height: 1lh;
+}
+.dn-block-render > :first-child {
+  margin-top: 0;
+}
+.dn-block-render > :last-child {
+  margin-bottom: 0;
+}
+.dn-block-render:hover,
+.dn-block-render:focus-visible {
+  background: var(--dn-cell-bg);
+}
+
+.dn-block-source {
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dn-cell-bg);
+}
+.dn-block-fence .dn-block-source {
+  margin: 0.9rem 0;
+}
+.dn-block-source .cm-editor {
+  font-family: var(--dl-mono);
+  font-size: var(--dn-code-font-size, 0.85em);
+}
+.dn-block-source .cm-editor.cm-focused {
+  outline: none;
+}
+
+/* Prose edits in place: CodeMirror supplies the caret, history and
+   Markdown intelligence, but not a second code-cell-looking box. */
+.dn-block-prose-source {
+  border: 0;
+  background: transparent;
+}
+.dn-block-prose-source:focus-within {
+  outline: 1px solid color-mix(in srgb, var(--dl-orange) 28%, transparent);
+  outline-offset: 3px;
+}
+.dn-block-prose-source .cm-editor {
+  font-family: var(--dl-font-family);
+  font-size: 1em;
+}
+.dn-block-prose-source .cm-content {
+  padding-block: 0;
+  padding-inline: 0;
+  font-family: var(--dl-font-family);
+}
+.dn-block-prose-source .cm-scroller,
+.dn-block-prose-source .cm-line {
+  line-height: inherit;
+}
+.dn-block-prose-source .cm-line {
+  padding-inline: 0;
+}
+.dn-block-prose-source .dn-md-strong {
+  font-weight: 700;
+}
+.dn-block-prose-source .dn-md-emphasis {
+  font-style: italic;
+}
+.dn-block-prose-source .dn-md-link {
+  color: var(--dl-link);
+  text-decoration: underline;
+}
+.dn-block-prose-source .dn-md-code {
+  border-radius: 3px;
+  background: var(--dn-cell-bg);
+  font-family: var(--dl-mono);
+  font-size: 0.9em;
+}
+
+/* A fold keeps its disclosure wrapper visible while only its Markdown
+   body becomes editable. The raw <details> implementation never becomes
+   part of the author-facing editing surface. */
+.dn-fold-editor {
+  cursor: default;
+}
+.dn-fold-body-source .cm-editor {
+  font-family: var(--dl-font-family);
+  font-size: 1em;
+}
+.dn-fold-body-source .cm-content {
+  padding-inline: 0;
+  font-family: var(--dl-font-family);
+}
+
+.dn-frontmatter-summary {
+  color: var(--dl-muted);
+  font-family: var(--dl-mono);
+  font-size: 0.78em;
+}
+
+.dn-frontmatter-plain-caption {
+  color: var(--dl-muted);
+  font-size: 0.85em;
+  margin: 0 0 0.4rem;
+}
+
+/* A blank-line block (render-block.ts's BLANK_LINE_PREVIEW) reuses every
+ * other prose block's own hover-toolbar and click-to-edit path — this only
+ * has to give it a real, hoverable height, quiet enough that it doesn't
+ * read as a mistake in the layout. */
+.dn-blank-line {
+  margin: 0;
+  min-height: 1.2em;
+}
+
+/* The front-matter form (decision 11) — one row per dialect field, styled
+ * after the settings panel's own row/control look (.dn-settings-row) so
+ * the two per-field forms this editor has feel like the same idiom. */
+.dn-frontmatter-form {
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dn-cell-bg);
+  padding: 0.75rem 0.9rem;
+  margin: 0.9rem 0;
+  font-size: 0.85em;
+}
+
+.dn-frontmatter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.4rem 0;
+}
+.dn-frontmatter-label {
+  flex: 0 0 9rem;
+  color: var(--dl-muted);
+}
+.dn-frontmatter-row select,
+.dn-frontmatter-row input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--dl-font-family);
+  font-size: 0.95em;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+  padding: 0.25rem 0.4rem;
+}
+
+.dn-frontmatter-clear {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  color: var(--dl-muted);
+  font-size: 1.1em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+}
+.dn-frontmatter-clear:hover {
+  color: var(--dl-orange);
+}
+
+.dn-frontmatter-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+.dn-frontmatter-add-field {
+  border: 1px dashed var(--dl-cell-border);
+  border-radius: 4px;
+  background: none;
+  color: var(--dl-muted);
+  font-size: 0.85em;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+.dn-frontmatter-add-field:hover {
+  color: var(--dl-fg);
+  border-color: var(--dl-orange);
+}
+
+.dn-frontmatter-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--dl-rule);
+}
+.dn-frontmatter-raw-toggle {
+  border: none;
+  background: none;
+  color: var(--dl-muted);
+  font-size: 0.8em;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+.dn-frontmatter-raw-toggle:hover {
+  color: var(--dl-orange);
+}
+.dn-frontmatter-done {
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.85em;
+  padding: 0.3rem 0.9rem;
+  cursor: pointer;
+}
+.dn-frontmatter-done:hover {
+  border-color: var(--dl-orange);
+  color: var(--dl-orange);
+}
+
+/* A fold's own disclosure keeps its native look; only its accent colour
+ * (dl-hint vs dl-answer) borrows the cell-type hues dewlab already uses
+ * for the same two classes. */
+.dn-block-fold details {
+  border-left: 3px solid var(--dl-cell-border);
+  padding-left: 0.8rem;
+}
+.dn-block-fold details.dl-hint {
+  border-left-color: var(--dl-orange);
+}
+.dn-block-fold details.dl-answer {
+  border-left-color: var(--dl-pass-fg);
+}
+.dn-block-fold summary {
+  cursor: pointer;
+  color: var(--dl-muted);
+  font-family: var(--dl-mono);
+  font-size: 0.85em;
+}
+
+/* Hover-revealed, never display:none — stays in the tab order and comes
+ * back for a keyboard user on :focus-within, dewlab's own rule for this
+ * (plan §5.3). */
+/* The one control cluster (app.ts), parked in the left gutter at
+   whichever block is being pointed at. Two controls at rest — add and
+   grip — with delete appearing only once a block is armed, so the
+   resting state of a document is as close to no chrome as it can be
+   while still being editable. */
+.dn-block-controls {
+  position: absolute;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-top: 0.2rem;
+  transition: top 0.08s ease-out;
+}
+.dn-block-controls[hidden] {
+  display: none;
+}
+
+.dn-add-btn,
+.dn-block-grip,
+.dn-block-delete {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--dl-muted);
+  cursor: pointer;
+  font-family: var(--dl-mono);
+  font-size: 0.75em;
+  line-height: 1;
+  opacity: 0.55;
+  transition: opacity 0.1s, color 0.1s, border-color 0.1s, background 0.1s;
+}
+.dn-add-btn:hover,
+.dn-block-grip:hover,
+.dn-add-btn:focus-visible,
+.dn-block-grip:focus-visible {
+  opacity: 1;
+  color: var(--dl-orange);
+  border-color: var(--dl-cell-border);
+  background: var(--dl-panel-bg);
+  outline: none;
+}
+.dn-block-grip {
+  cursor: grab;
+}
+.dn-block-grip[aria-pressed="true"] {
+  opacity: 1;
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+  background: var(--dl-panel-bg);
+}
+.dn-block-delete:hover,
+.dn-block-delete:focus-visible {
+  opacity: 1;
+  color: var(--dl-error-fg);
+  border-color: var(--dl-error-fg);
+  background: var(--dl-panel-bg);
+  outline: none;
+}
+
+/* Armed: the block is outlined, the arrow keys reorder it, and delete is
+   reachable. Nothing else in the editor deletes a block, so arming is the
+   deliberate step that guards it. */
+.dn-block.is-armed {
+  outline: 2px solid var(--dl-orange);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Where a dragged block would land. Only ever on one block at a time, and
+   only while a grip is actually being dragged. */
+.dn-block.is-drop-target {
+  box-shadow: 0 -2px 0 0 var(--dl-orange);
+}
+
+/* ------------------------------------------------------------ fence panels */
+
+/* The shared shell every fence's below-editor "extra stuff" sits in — a
+ * cell's Run bar and output, a SQL cell's restore banner and output, a
+ * staged hint's read-only preview, a site group's live preview
+ * (app.ts's buildFencePanel). Each kind keeps its own class below for
+ * its own look — and for the tests that already select by it — so this
+ * only carries what all four genuinely share; a spacing change happens
+ * once here instead of four times over. `.dn-site-preview` overrides the
+ * top margin for its own card look; the rest, every panel keeps as is. */
+.dn-fence-panel {
+  margin: 0 0 0.9rem;
+}
+
+/* -------------------------------------------------------- runnable cells */
+
+/* A runnable fence's own split chrome (decision 27): one bordered box
+ * holding the compact header bar and the code-only editor, so the two
+ * read as one cell rather than two stacked boxes. `.dn-cell-code` strips
+ * `.dn-block-source`'s own border/background — the box around both
+ * already carries them — so nothing doubles up. */
+.dn-cell-box {
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dn-cell-bg);
+  overflow: hidden;
+  margin: 0.9rem 0;
+}
+.dn-cell-box .dn-cell-code {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  margin: 0;
+}
+
+.dn-cell-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.7rem;
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--dl-cell-border);
+  font-family: var(--dl-mono);
+  font-size: 0.78em;
+}
+.dn-cell-lang {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: var(--dl-type-python);
+}
+.dn-cell-lang-sql {
+  color: var(--dl-type-sql);
+}
+.dn-cell-header-field {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.dn-cell-header-label {
+  flex: 0 0 auto;
+  color: var(--dl-muted);
+}
+/* Borderless and transparent at rest — the same "quiet by default"
+ * treatment the block toolbar's hover-reveal already gives every other
+ * piece of chrome — so the common case (just id, one short word) costs
+ * almost no visual weight; hovering or focusing is what says "you can
+ * type here." */
+.dn-cell-header-input {
+  flex: 1 1 auto;
+  min-width: 3rem;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--dl-fg);
+  font-family: inherit;
+  font-size: 1em;
+  padding: 0.05rem 0.3rem;
+}
+.dn-cell-header-input:hover,
+.dn-cell-header-input:focus {
+  border-color: var(--dl-cell-border);
+  background: var(--dl-bg);
+  outline: none;
+}
+.dn-cell-header-clear {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  color: var(--dl-muted);
+  font-size: 1.1em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+}
+.dn-cell-header-clear:hover {
+  color: var(--dl-orange);
+}
+.dn-cell-header-add-row {
+  display: flex;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+}
+.dn-cell-header-add {
+  border: 1px dashed var(--dl-cell-border);
+  border-radius: 3px;
+  background: none;
+  color: var(--dl-muted);
+  font-family: inherit;
+  font-size: 0.95em;
+  padding: 0.05rem 0.4rem;
+  cursor: pointer;
+}
+.dn-cell-header-add:hover {
+  color: var(--dl-fg);
+  border-color: var(--dl-orange);
+}
+
+/* A staged-hint fence's own read-only preview — the same accent colour
+ * .dn-block-fold's own dl-hint fold already borrows from dewlab, shown
+ * open (dewnote has no reader-side trigger to gate it on) rather than
+ * hidden the way a real reading page's copy is. */
+.dn-hint-preview details {
+  border-left: 3px solid var(--dl-orange);
+  padding-left: 0.8rem;
+}
+.dn-hint-preview summary {
+  cursor: default;
+  color: var(--dl-muted);
+  font-family: var(--dl-mono);
+  font-size: 0.85em;
+}
+
+/* A ```card fence's own preview — dewlab's real .dl-module-card/
+ * .dl-module-grid classes (assets/tutorial-style.css there), reproduced
+ * here rather than imported wholesale, the same "tokens shared, rules
+ * of its own" split every other dewlab-borrowed class in this file
+ * already follows. */
+.dn-card-preview .dl-module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 0.9rem;
+}
+.dn-card-preview .dl-module-card {
+  display: block;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 8px;
+  background: var(--dl-panel-bg);
+  color: inherit;
+  text-decoration: none;
+}
+.dn-card-preview .dl-module-card:hover {
+  border-color: var(--dl-orange);
+}
+.dn-card-preview .dl-module-card:hover h3 {
+  color: var(--dl-orange);
+}
+.dn-card-preview .dl-module-card h3 {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+}
+.dn-card-preview .dl-module-card p {
+  margin: 0 0 0.65rem;
+  font-size: 0.86rem;
+  color: var(--dl-muted);
+}
+.dn-card-preview .dl-module-card-meta {
+  display: block;
+  margin: 0 0 0.5rem;
+  font-family: var(--dl-mono);
+  font-size: 0.72rem;
+  color: var(--dl-muted);
+}
+.dn-card-preview .dl-module-card-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  font-family: var(--dl-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dl-muted);
+}
+.dn-card-preview .dl-module-card-badge[data-status="beta"] {
+  border-color: var(--dl-orange);
+  color: var(--dl-orange);
+}
+
+/* A ```question fence's own preview — dewlab's real .dl-question/
+ * .dl-question-prompt/.dl-question-options/.dl-question-option classes
+ * (assets/tutorial-style.css there), the same "tokens shared, rules of
+ * its own" split every other dewlab-borrowed class in this file already
+ * follows. No Check button and no feedback slot: there is no reader
+ * here to click one, so the option marked `data-correct` (build.py's
+ * own attribute, not this editor's invention) is simply shown as such,
+ * which is what an author needs to see while `correct:` is a number
+ * they'd otherwise have to count options to check. */
+.dn-question-preview .dl-question {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 8px;
+  background: var(--dl-cell-bg);
+}
+.dn-question-preview .dl-question-prompt > :first-child {
+  margin-top: 0;
+}
+.dn-question-preview .dl-question-prompt > :last-child {
+  margin-bottom: 0;
+}
+.dn-question-preview .dl-question-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+.dn-question-preview .dl-question-option {
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 6px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: default;
+}
+/* The one option `correct:` currently names — a solid border rather
+ * than dewlab's own runtime `is-selected` styling, which is for a
+ * reader's own click and has no meaning here. */
+.dn-question-preview .dl-question-option[data-correct="true"] {
+  border-color: var(--dl-pass-fg);
+  box-shadow: inset 0 0 0 1px var(--dl-pass-fg);
+}
+/* A fill-in-the-blank gap's own expected word, shown inline rather than
+ * as the live dropdown or typing box the built page mounts — this
+ * editor has no reader to check an answer for (renderQuestionGaps's own
+ * comment says why). Not a `dl-` class: unlike `.dl-question-option`
+ * above, nothing here reproduces a class dewlab's real build writes. */
+.dn-question-gap {
+  padding: 0 0.3rem;
+  border-radius: 3px;
+  background: var(--dl-cell-bg);
+  color: var(--dl-pass-fg);
+  font-weight: 600;
+}
+.dn-sql-restore {
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  background: var(--dn-cell-bg);
+  color: var(--dl-muted);
+  font-size: 0.82em;
+}
+/* `[hidden]` and this class have equal specificity — without :not(), a
+ * plain `display: flex` here would win the cascade tie and defeat
+ * `hidden`, since this rule is declared after the browser's own. */
+.dn-sql-restore:not([hidden]) {
+  display: flex;
+}
+.dn-sql-restore-button {
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-mono);
+  font-size: 0.85em;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+}
+.dn-sql-restore-button:hover {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+.dn-cell-runner,
+.dn-sql-runner {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.dn-cell-run,
+.dn-cell-stop,
+.dn-sql-run,
+.dn-sql-reset {
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-mono);
+  font-size: 0.78em;
+  padding: 0.25rem 0.7rem;
+  cursor: pointer;
+}
+.dn-cell-run:hover:not(:disabled),
+.dn-sql-run:hover:not(:disabled) {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+.dn-cell-stop:hover:not(:disabled),
+.dn-sql-reset:hover:not(:disabled) {
+  color: var(--dl-error-fg);
+  border-color: var(--dl-error-fg);
+}
+.dn-cell-run:disabled,
+.dn-cell-stop:disabled,
+.dn-sql-run:disabled,
+.dn-sql-reset:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.dn-cell-output:empty,
+.dn-sql-output:empty {
+  display: none;
+}
+.dn-cell-output,
+.dn-sql-output {
+  border-radius: 4px;
+  background: var(--dn-output-bg);
+  padding: 0.6rem 0.8rem;
+  font-family: var(--dl-mono);
+  font-size: 0.82em;
+}
+.dn-cell-output pre,
+.dn-sql-output pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.dn-cell-output pre + pre {
+  margin-top: 0.4rem;
+}
+.dn-cell-output .dn-stdout {
+  color: var(--dl-fg);
+}
+.dn-cell-output .dn-error,
+.dn-sql-output .dn-error {
+  color: var(--dl-error-fg);
+  background: var(--dl-error-bg);
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+}
+.dn-cell-output .dn-repr {
+  color: var(--dl-muted);
+}
+.dn-cell-output .dn-figure img {
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+/* A pandas DataFrame's own table (an exec cell's trailing-expression
+ * render) and a SQL cell's result table share this — dewnote_tools.py
+ * and dewnote_sql_tools.py both just emit a bare &lt;table&gt;, with no
+ * class of its own to hang styling off other than the output area
+ * around it. */
+.dn-cell-output table,
+.dn-sql-output table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+.dn-cell-output th,
+.dn-cell-output td,
+.dn-sql-output th,
+.dn-sql-output td {
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--dl-cell-border);
+}
+.dn-sql-output .dn-sql-note {
+  margin: 0;
+  color: var(--dl-muted);
+}
+
+/* --------------------------------------------------------- block menu */
+
+/* One menu, drawn twice: the "+" button's popover wraps it in a search
+   field, and a prose block's slash command feeds it the text already
+   being typed. Everything below — group headings, a label with a line
+   of explanation under it, the selected row — is shared, so the two
+   never drift apart the way two hand-written lists did.
+
+   Both are real popovers, not hover reveals: closed means genuinely
+   absent (display:none), the same as any native menu, since the items
+   have no reason to sit in the tab order until a reader opens one. */
+
+.dn-block-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dn-block-menu-group {
+  padding: 0.5rem 0.55rem 0.2rem;
+  color: var(--dl-muted);
+  font-size: 0.62em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+/* No rule above the first heading, and none doubled where a group
+   follows the search field. */
+.dn-block-menu-group + .dn-block-menu-item {
+  margin-top: 0;
+}
+
+.dn-block-menu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  align-items: flex-start;
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--dl-fg);
+  text-align: left;
+  cursor: pointer;
+}
+.dn-block-menu-label {
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+/* The one line under each label. It is what lets the menu hold eight
+   kinds without a reader having to already know what a "fold" is, and
+   it is the reason a row is two lines tall rather than one. */
+.dn-block-menu-detail {
+  color: var(--dl-muted);
+  font-size: 0.72em;
+  line-height: 1.3;
+}
+.dn-block-menu-item.is-selected,
+.dn-block-menu-item:hover,
+.dn-block-menu-item:focus-visible {
+  background: var(--dl-cell-bg);
+  outline: none;
+}
+.dn-block-menu-item.is-selected .dn-block-menu-label,
+.dn-block-menu-item:hover .dn-block-menu-label,
+.dn-block-menu-item:focus-visible .dn-block-menu-label {
+  color: var(--dl-orange);
+}
+
+/* ---- the "+" button's popover */
+
+.dn-add-menu {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  z-index: 5;
+  flex-direction: column;
+  width: 18rem;
+  max-width: calc(100vw - 4rem);
+  max-height: 60vh;
+  overflow-y: auto;
+  margin-top: 0.2rem;
+  padding: 0.3rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 10px;
+  background: var(--dl-panel-bg);
+  box-shadow: 0 8px 28px var(--dl-shadow);
+}
+.dn-add-menu.is-open {
+  display: flex;
+}
+
+.dn-add-search {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.2rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 6px;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+  font: inherit;
+  font-size: 0.85em;
+}
+.dn-add-search:focus-visible {
+  border-color: var(--dl-orange);
+  outline: none;
+}
+
+.dn-add-empty {
+  padding: 0.7rem 0.55rem;
+  color: var(--dl-muted);
+  font-size: 0.78em;
+}
+
+/* ---- a prose block's slash command */
+
+/* Left-anchored under the editor rather than centred under a "+"
+   button, since it opens from wherever the reader is typing rather than
+   from a fixed point in the margin. Narrower than the "+" popover: it
+   has no search field of its own, and it sits inside the text column
+   rather than beside it. */
+.dn-slash-menu {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 5;
+  width: 16rem;
+  max-width: 100%;
+  margin-top: 0.2rem;
+  padding: 0.3rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 10px;
+  background: var(--dl-panel-bg);
+  box-shadow: 0 8px 28px var(--dl-shadow);
+}
+.dn-slash-menu.is-open {
+  display: flex;
+}
+
+/* Touch. Nothing here is hover-revealed any more — the cluster is either
+   attached to a block or hidden — so this is only about size: a finger
+   needs a target Apple puts at 44px and Android at 48, where a mouse is
+   happy with 24. The gutter widens to match so the controls still clear
+   the text.
+
+   What makes this affordable is that there are three of them rather than
+   three per block: at the old geometry, finger-sized controls on every
+   block would have been most of the screen. */
+@media (hover: none) {
+  :root {
+    --dn-gutter: 3.25rem;
+  }
+  .dn-add-btn,
+  .dn-block-grip,
+  .dn-block-delete {
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1em;
+    opacity: 0.8;
+  }
+  .dn-block-controls {
+    gap: 0.35rem;
+  }
+  .dn-block-menu-item {
+    min-height: 2.75rem;
+    justify-content: center;
+  }
+  .dn-add-search {
+    min-height: 2.75rem;
+  }
+}
+
+/* A phone gets the "+" menu as a sheet across the bottom of the window
+   rather than a popover hanging off a button in a 3.25rem gutter, where
+   an 18rem panel has nowhere to go. It is the same list; what changes is
+   that it is anchored to the edge the thumb is nearest and is as wide as
+   the screen, so every row is a full-width target.
+
+   It sits over the icon rail rather than above it (z-index 40, against
+   the rail's 11). A sheet resting on a bar reads as two bars, and while
+   a reader is choosing what block to add, the rail is not the thing
+   they are reaching for.
+
+   The slash menu stays a popover at every width. It opens under the line
+   being typed and has to stay next to it — a reader mid-sentence
+   watching the menu jump to the bottom of the screen has lost the thread
+   the menu was meant to keep. */
+@media (max-width: 40rem) {
+  .dn-add-menu {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: auto;
+    max-width: none;
+    max-height: 70vh;
+    margin: 0;
+    padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+    border-width: 1px 0 0;
+    border-radius: 14px 14px 0 0;
+    z-index: 40;
+  }
+}
+
+/* --------------------------------------------------------- file bar */
+
+.dn-file-bar {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: var(--dl-font-family);
+  font-size: 0.82em;
+  color: var(--dl-muted);
+  transition: background 0.1s, border-color 0.1s;
+}
+.dn-file-bar:hover,
+.dn-file-bar:focus-within {
+  background: var(--dl-panel-bg);
+  border-color: var(--dl-cell-border);
+}
+.dn-file-bar.is-drag-target {
+  background: var(--dl-panel-bg);
+  border-color: var(--dl-orange);
+}
+
+/* Dewlab's where-you-are tree, adapted to an editor as three compact
+   dropdown rungs. It is navigation rather than a drawer, so it stays on
+   the left while every editing/inspection panel remains on the right. */
+.dn-workspace-nav {
+  position: fixed;
+  top: 4.75rem;
+  left: 1rem;
+  z-index: 8;
+  display: grid;
+  width: 13rem;
+  gap: 0.4rem;
+  padding: 0.65rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--dl-panel-bg) 94%, transparent);
+  box-shadow: 0 5px 18px var(--dl-shadow);
+  font-family: var(--dl-font-family);
+  font-size: 0.78rem;
+}
+.dn-workspace-nav-heading {
+  color: var(--dl-muted);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.dn-workspace-nav select {
+  width: 100%;
+  min-height: 2.35rem;
+  box-sizing: border-box;
+  border: 1px solid var(--dn-control-border);
+  border-radius: 6px;
+  background: var(--dn-control-bg);
+  color: var(--dl-fg);
+  font: inherit;
+  padding: 0.3rem 1.65rem 0.3rem 0.45rem;
+}
+.dn-workspace-nav select:focus-visible {
+  border-color: var(--dl-orange);
+  outline: 2px solid color-mix(in srgb, var(--dl-orange) 28%, transparent);
+}
+
+@media (max-width: 64rem) {
+  .dn-workspace-nav {
+    left: 0.5rem;
+    width: 8.5rem;
+  }
+}
+
+@media (max-width: 50rem) {
+  .dn-workspace-nav {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: auto;
+    margin: 4.75rem 1rem 0;
+    grid-template-columns: auto repeat(3, minmax(0, 1fr));
+    align-items: center;
+  }
+}
+
+.dn-file-name {
+  color: var(--dl-fg);
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dn-file-open,
+.dn-file-save,
+.dn-file-export {
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 1em;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+}
+.dn-file-open:hover,
+.dn-file-save:hover,
+.dn-file-export:hover {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+.dn-file-save:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dn-file-status {
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+/* ------------------------------------------------------------ icon rail */
+
+/* The one shared home for every panel's toggle button (icon-rail.ts) —
+   replaces eight independently hand-picked `top: Nrem` offsets (and one
+   toggle stranded on the opposite side of the screen) with a single flex
+   column that lays its children out itself. Each toggle keeps its own
+   class and colour; the rail gives all of them one consistent shape. */
+.dn-icon-rail {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* Labels are the default on every screen, not only on the phone bar.
+   The setting can collapse the rail to familiar icons or remove the
+   decorative glyphs entirely without changing accessible names. */
+.dn-icon-rail > button,
+.dn-file-action-rail > button {
+  width: 4.25rem;
+  min-width: 4.25rem;
+  height: 4.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.45rem;
+  border-radius: 50%;
+}
+
+.dn-icon-rail > button[data-label]::after {
+  content: attr(data-label);
+  font-family: var(--dl-font-family);
+  font-size: 0.72rem;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--dl-muted);
+}
+
+[data-rail-display="icons"] .dn-icon-rail > button {
+  width: 3.25rem;
+  min-width: 3.25rem;
+  height: 3.25rem;
+  padding: 0;
+}
+
+[data-rail-display="icons"] .dn-icon-rail > button[data-label]::after {
+  display: none;
+}
+
+[data-rail-display="labels"] .dn-icon-rail > button {
+  font-size: 0;
+}
+
+[data-rail-display="labels"] .dn-icon-rail > button[data-label]::after {
+  font-size: 0.78rem;
+}
+
+/* Narrow screens: the rail becomes a bottom bar.
+   
+   Not a style preference. Fixed to the right edge, it sat on top of the
+   text — measured on a phone, the rail occupied x 352-384 while every
+   block's own controls sat at x 376-400, so the two were stacked on each
+   other and both ran to the bezel. Along the bottom there is nothing to
+   collide with, it is where a thumb already is, and the page simply
+   reserves height for it instead of width.
+
+   The toggles keep their own class names and their own behaviour; only
+   the container's layout changes. */
+@media (max-width: 40rem) {
+  .dn-icon-rail {
+    top: auto;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    flex-direction: row;
+    justify-content: center;
+    gap: 0.15rem;
+    padding: 0.35rem 0.5rem;
+    padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--dl-rule);
+    background: var(--dl-panel-bg);
+    /* A safety net only: the buttons above share the width, so this
+       should never actually scroll. It exists for a font scale or a
+       language that makes the labels wider than eight slots can hold. */
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .dn-icon-rail::-webkit-scrollbar {
+    display: none;
+  }
+  /* Every toggle, whatever it named its own class. Sized for a finger and
+     flat rather than circled — eight outlined circles in a row reads as
+     eight objects; eight glyphs on one bar reads as one control.
+
+     Each carries its own word underneath (icon-rail.ts's labelToggle).
+     A row of unlabelled glyphs is a memory test: ▤, ⌂ and ≡ mean nothing
+     until you have opened each one, and on a phone there is no tooltip
+     to hover for the answer. Rendered from the attribute rather than as
+     a second element, so the button stays one node with one accessible
+     name. */
+  .dn-icon-rail > button {
+    /* Share the width evenly rather than each taking what it wants. Eight
+       intrinsic widths came to 419px in a 390px bar, so the row scrolled
+       and opened with its first and last items sliced in half — which
+       reads as broken rather than as scrollable. */
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    width: auto;
+    height: auto;
+    min-height: 3.1rem;
+    padding: 0.3rem 0.1rem;
+    border-radius: 8px;
+    border-color: transparent;
+    background: none;
+    opacity: 1;
+    font-size: 1.05em;
+  }
+  .dn-icon-rail > button[data-label]::after {
+    content: attr(data-label);
+    font-family: var(--dl-font-family);
+    font-size: 0.56rem;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    color: var(--dl-muted);
+  }
+  .dn-icon-rail > button[aria-expanded="true"] {
+    background: var(--dl-cell-bg);
+  }
+  .dn-icon-rail > button[aria-expanded="true"]::after {
+    color: var(--dl-orange);
+  }
+  .dn-page {
+    /* Room for the bar, so the last block is never under it. */
+    padding-bottom: 6rem;
+    /* And a phone's own measure. The desktop gutter is 3rem a side,
+       which on a 390px screen is 104px of padding — a quarter of the
+       width — and left the text at 32 characters a line where reading
+       wants 45 and up. The left gutter only has to hold one 44px
+       control, and the right holds nothing at all.
+
+       The size comes down with it: 16px rather than 18. Together that is
+       about 41 characters a line, which is where a phone reader actually
+       sits — iOS Books at its default is much the same. `min` rather
+       than a flat value so a reader who chose something smaller still
+       gets it. */
+    padding-left: 2.75rem;
+    padding-right: 1rem;
+    font-size: min(var(--dl-font-size, 18px), 16px);
+    /* Clear of the file bar, which is fixed at the top and grew taller
+       when its buttons became finger-sized — 3rem left the first block
+       half behind Open and Save. */
+    padding-top: 4.5rem;
+  }
+  /* A panel opens above the bar rather than over it. */
+  .dn-series-panel,
+  .dn-folder-panel,
+  .dn-repo-panel,
+  .dn-outline-panel,
+  .dn-settings-panel,
+  .dn-linkcheck-panel {
+    bottom: 4rem;
+  }
+}
+
+/* --------------------------------------------------- persistent inspector */
+
+:root {
+  --dn-inspector-width: 22rem;
+  --dn-rail-space: 6.5rem;
+  --dn-control-border: color-mix(in srgb, var(--dl-fg) 52%, transparent);
+  --dn-control-bg: color-mix(in srgb, var(--dl-panel-bg) 84%, var(--dl-fg) 16%);
+}
+
+.dn-docked-panel {
+  position: fixed !important;
+  top: 0 !important;
+  /* Several panels predate the shared dock. In particular, GitHub used
+     `left: 0` and Source used `inset: 0`; without clearing that legacy
+     edge they remain over-constrained and the browser keeps them left. */
+  left: auto !important;
+  right: var(--dn-rail-space) !important;
+  bottom: 0 !important;
+  width: var(--dn-inspector-width) !important;
+  max-width: calc(100vw - var(--dn-rail-space) - 1rem) !important;
+  height: 100% !important;
+  box-sizing: border-box;
+  z-index: 20 !important;
+}
+
+.dn-repo-panel.dn-docked-panel {
+  border-right: 0;
+  border-left: 1px solid var(--dl-cell-border);
+  box-shadow: -4px 0 16px var(--dl-shadow);
+}
+
+.dn-source-overlay.dn-docked-panel {
+  padding: 0;
+  background: transparent;
+}
+
+.dn-source-overlay.dn-docked-panel .dn-source-box {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
+.dn-dock-group-panel {
+  overflow-y: auto;
+  padding: 1rem 1.25rem 2rem;
+  background: var(--dl-panel-bg);
+  border-left: 1px solid var(--dl-cell-border);
+  box-shadow: -4px 0 16px var(--dl-shadow);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+}
+
+.dn-dock-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
+}
+
+.dn-dock-group-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+}
+
+.dn-dock-group-close {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--dl-fg);
+  font: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.dn-dock-group-options {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dn-dock-group-option {
+  padding: 0.75rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 8px;
+  background: var(--dn-control-bg);
+}
+
+.dn-dock-group-option > button {
+  width: 100%;
+  height: auto;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--dn-control-border);
+  border-radius: 6px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  text-align: left;
+  cursor: pointer;
+  opacity: 1;
+}
+
+.dn-dock-group-option > button[data-label]::after {
+  content: attr(data-label);
+  font-size: 0.92rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.dn-dock-group-option > button:hover,
+.dn-dock-group-option > button:focus-visible {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+
+.dn-dock-group-option > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.dn-dock-group-option p {
+  margin: 0.45rem 0 0;
+  color: var(--dl-muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.dn-icon-rail {
+  z-index: 22;
+}
+
+.dn-icon-rail > button {
+  opacity: 1;
+  color: var(--dl-fg);
+  border-color: var(--dn-control-border);
+  background: var(--dn-control-bg);
+}
+
+.dn-icon-rail > button.is-active,
+.dn-file-action-rail > button.is-active {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dl-orange) 20%, transparent);
+}
+
+.dn-file-action-rail {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 22;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.dn-file-action-rail > button {
+  width: 4.25rem;
+  min-width: 4.25rem;
+  height: 4.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.45rem;
+  border: 1px solid var(--dn-control-border);
+  border-radius: 50%;
+  background: var(--dn-control-bg);
+  color: var(--dl-fg);
+  font: inherit;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.dn-file-action-rail > button[data-label]::after {
+  content: attr(data-label);
+  font-family: var(--dl-font-family);
+  font-size: 0.72rem;
+  line-height: 1;
+  color: var(--dl-fg);
+}
+
+.dn-file-action-panel {
+  overflow-y: auto;
+  padding: 1rem 1.25rem 2rem;
+  background: var(--dl-panel-bg);
+  border-left: 1px solid var(--dl-cell-border);
+  box-shadow: -4px 0 16px var(--dl-shadow);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+}
+
+.dn-file-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.dn-file-panel-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+}
+
+.dn-file-panel-close {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--dl-fg);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.dn-file-action-list {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.dn-file-action-section {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.dn-file-action-section h3 {
+  margin: 0;
+  color: var(--dl-heading);
+  font-size: 0.95rem;
+}
+
+.dn-file-action-choice {
+  padding: 0.75rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 8px;
+  background: var(--dn-control-bg);
+}
+
+.dn-file-action-choice button {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--dn-control-border);
+  border-radius: 6px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dn-file-action-choice button:hover,
+.dn-file-action-choice button:focus-visible {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+
+.dn-file-action-choice p {
+  margin: 0.4rem 0 0;
+  color: var(--dl-muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.dn-inspector-resizer {
+  position: fixed;
+  z-index: 23;
+  top: 0;
+  bottom: 0;
+  right: calc(var(--dn-inspector-width) + var(--dn-rail-space) - 7px);
+  width: 14px;
+  cursor: ew-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.dn-inspector-resizer::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 6px;
+  width: 2px;
+  background: var(--dl-cell-border);
+  opacity: 0.28;
+  transition: background 120ms, width 120ms, opacity 120ms;
+}
+
+.dn-inspector-resizer:hover::before,
+.dn-inspector-resizer:focus-visible::before,
+.dn-inspector-resizer.is-dragging::before {
+  width: 3px;
+  background: var(--dl-orange);
+  opacity: 1;
+}
+
+.dn-inspector-resizer-grip {
+  position: absolute;
+  top: 50%;
+  left: -7px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 38px;
+  border: 1px solid var(--dn-control-border);
+  border-radius: 8px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-muted);
+  writing-mode: vertical-rl;
+  letter-spacing: 1px;
+  opacity: 0.22;
+  transition: color 120ms, border-color 120ms, opacity 120ms, box-shadow 120ms;
+}
+
+.dn-inspector-resizer:hover .dn-inspector-resizer-grip,
+.dn-inspector-resizer:focus-visible .dn-inspector-resizer-grip,
+.dn-inspector-resizer.is-dragging .dn-inspector-resizer-grip {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+  opacity: 1;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dl-orange) 16%, transparent);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--dl-orange);
+  outline-offset: 2px;
+}
+
+.dn-docked-panel button:not(.dn-series-link):not(.dn-outline-item button),
+.dn-file-bar button {
+  color: var(--dl-fg);
+  border-color: var(--dn-control-border);
+}
+
+.dn-file-name.is-dirty::after {
+  content: " •";
+  color: var(--dl-orange);
+}
+
+.dn-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+@media (max-width: 40rem) {
+  :root { --dn-rail-space: 0rem; }
+  .dn-docked-panel {
+    right: 0 !important;
+    width: min(var(--dn-inspector-width), 100vw) !important;
+    max-width: 100vw !important;
+    bottom: 4rem !important;
+    height: auto !important;
+  }
+  .dn-inspector-resizer {
+    right: calc(min(var(--dn-inspector-width), 100vw) - 7px);
+    bottom: 4rem;
+  }
+  .dn-file-action-rail {
+    right: 0.75rem;
+    bottom: 4.75rem;
+    flex-direction: row;
+  }
+  .dn-file-action-rail > button {
+    width: 3.75rem;
+    min-width: 3.75rem;
+    height: 3.75rem;
+  }
+}
+
+/* ------------------------------------------------------------ repository */
+
+.dn-repo-toggle {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--dl-cell-border);
+  background: var(--dl-panel-bg);
+  color: var(--dl-muted);
+  font-size: 1.05em;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.1s;
+}
+.dn-repo-toggle:hover,
+.dn-repo-toggle:focus-visible {
+  opacity: 1;
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+  outline: none;
+}
+
+.dn-repo-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 11;
+  width: 20rem;
+  max-width: 90vw;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--dl-panel-bg);
+  border-right: 1px solid var(--dl-cell-border);
+  box-shadow: 4px 0 16px var(--dl-shadow);
+  padding: 1rem 1.25rem 2rem;
+  font-family: var(--dl-font-family);
+  font-size: 0.85em;
+  color: var(--dl-fg);
+}
+
+.dn-repo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.dn-repo-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--dl-heading);
+}
+.dn-repo-close {
+  border: none;
+  background: none;
+  color: var(--dl-muted);
+  font-size: 1.2em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+.dn-repo-close:hover {
+  color: var(--dl-orange);
+}
+
+.dn-repo-section {
+  border-top: 1px solid var(--dl-rule);
+  padding: 0.75rem 0;
+}
+
+.dn-repo-field {
+  display: block;
+  margin: 0.4rem 0;
+}
+.dn-repo-field > span {
+  display: block;
+  color: var(--dl-muted);
+  font-size: 0.85em;
+  margin-bottom: 0.2rem;
+}
+.dn-repo-field input[type="text"],
+.dn-repo-field input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--dl-font-family);
+  font-size: 0.95em;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+  padding: 0.25rem 0.4rem;
+}
+
+.dn-repo-token-row,
+.dn-repo-owner-row {
+  display: flex;
+  gap: 0.4rem;
+}
+.dn-repo-token-row input {
+  flex: 1;
+}
+.dn-repo-owner-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.dn-repo-forget,
+.dn-repo-load,
+.dn-repo-new-file,
+.dn-repo-push,
+.dn-repo-release,
+.dn-repo-pr,
+.dn-repo-conflict-keep,
+.dn-repo-conflict-take {
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.9em;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+}
+.dn-repo-forget:hover,
+.dn-repo-load:hover,
+.dn-repo-new-file:hover,
+.dn-repo-push:hover,
+.dn-repo-release:hover,
+.dn-repo-pr:hover,
+.dn-repo-conflict-keep:hover,
+.dn-repo-conflict-take:hover {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+.dn-repo-load,
+.dn-repo-new-file,
+.dn-repo-push,
+.dn-repo-release,
+.dn-repo-pr,
+.dn-repo-conflict-keep,
+.dn-repo-conflict-take {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+}
+
+.dn-repo-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.75rem 0 0;
+}
+.dn-repo-tab {
+  min-height: 2.5rem;
+  border: 1px solid var(--dn-control-border);
+  border-radius: 999px;
+  background: var(--dn-control-bg);
+  color: var(--dl-fg);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.dn-repo-tab.is-active {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+  background: color-mix(in srgb, var(--dl-orange) 10%, var(--dl-panel-bg));
+}
+.dn-repo-module-list {
+  display: grid;
+  gap: 0.4rem;
+}
+.dn-repo-organize-modules {
+  width: 100%;
+  min-height: 2.6rem;
+  margin-bottom: 0.7rem;
+  border: 1px solid var(--dn-control-border);
+  border-radius: 7px;
+  background: var(--dn-control-bg);
+  color: var(--dl-fg);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.dn-repo-organize-modules:hover,
+.dn-repo-organize-modules:focus-visible {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+.dn-repo-module-choice {
+  width: 100%;
+  min-height: 2.6rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--dn-control-border);
+  border-radius: 7px;
+  background: var(--dn-control-bg);
+  color: var(--dl-fg);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+.dn-repo-module-choice.is-active {
+  border-color: var(--dl-orange);
+  color: var(--dl-orange);
+}
+.dn-repo-module-detail {
+  margin-top: 1rem;
+}
+.dn-repo-module-detail-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.dn-repo-module-detail-heading h3,
+.dn-repo-module-series h4 {
+  margin: 0;
+  color: var(--dl-heading);
+}
+.dn-repo-module-detail-heading button {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+}
+.dn-repo-module-series {
+  margin-top: 0.9rem;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--dl-rule);
+}
+.dn-repo-module-series h4 {
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+}
+.dn-repo-module-page {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.15rem 0;
+}
+.dn-repo-module-page button {
+  flex: 1;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0.35rem 0.45rem !important;
+  text-align: left;
+  cursor: pointer;
+}
+.dn-repo-module-page.is-practice {
+  margin-left: 1rem;
+}
+.dn-repo-module-page.is-practice button::before {
+  content: "Practice · ";
+  color: var(--dl-muted);
+  font-size: 0.82em;
+}
+.dn-repo-module-page span {
+  color: var(--dl-error-fg);
+  font-size: 0.75rem;
+}
+
+.dn-repo-hint {
+  font-size: 0.85em;
+  color: var(--dl-muted);
+  margin: 0.4rem 0 0;
+}
+.dn-repo-status {
+  min-height: 1.2em;
+}
+
+.dn-repo-search {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--dl-font-family);
+  font-size: 0.95em;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+  padding: 0.25rem 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.dn-repo-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 22rem;
+  overflow-y: auto;
+}
+.dn-repo-file {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.9em;
+  padding: 0.3rem 0.2rem;
+  cursor: pointer;
+  word-break: break-all;
+}
+.dn-repo-file:hover,
+.dn-repo-file:focus-visible {
+  color: var(--dl-orange);
+  outline: none;
+}
+.dn-repo-empty {
+  color: var(--dl-muted);
+  font-size: 0.9em;
+  padding: 0.3rem 0.2rem;
+}
+
+.dn-repo-conflict-text {
+  max-height: 8rem;
+  overflow: auto;
+  margin: 0 0 0.5rem;
+  padding: 0.4rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-mono-family, monospace);
+  font-size: 0.8em;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* --------------------------------------------------------------- folder */
+
+.dn-folder-toggle {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--dl-cell-border);
+  background: var(--dl-panel-bg);
+  color: var(--dl-muted);
+  font-size: 1.05em;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.1s;
+}
+.dn-folder-toggle:hover,
+.dn-folder-toggle:focus-visible {
+  opacity: 1;
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+  outline: none;
+}
+.dn-folder-toggle:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.dn-folder-toggle:disabled:hover {
+  color: var(--dl-muted);
+  border-color: var(--dl-cell-border);
+}
+
+.dn-folder-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 11;
+  width: 20rem;
+  max-width: 90vw;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--dl-panel-bg);
+  border-left: 1px solid var(--dl-cell-border);
+  box-shadow: -4px 0 16px var(--dl-shadow);
+  padding: 1rem 1.25rem 2rem;
+  font-family: var(--dl-font-family);
+  font-size: 0.85em;
+  color: var(--dl-fg);
+}
+
+.dn-folder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.dn-folder-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--dl-heading);
+}
+.dn-folder-close {
+  border: none;
+  background: none;
+  color: var(--dl-muted);
+  font-size: 1.2em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+.dn-folder-close:hover {
+  color: var(--dl-orange);
+}
+
+.dn-folder-section {
+  border-top: 1px solid var(--dl-rule);
+  padding: 0.75rem 0;
+}
+
+.dn-folder-open-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.dn-folder-open {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.9em;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+.dn-folder-open:hover {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+.dn-folder-refresh {
+  flex: 0 0 auto;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.9em;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+.dn-folder-refresh:hover:not(:disabled) {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+.dn-folder-refresh:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.dn-folder-hint {
+  font-size: 0.85em;
+  color: var(--dl-muted);
+  margin: 0.4rem 0 0;
+}
+.dn-folder-status {
+  min-height: 1.2em;
+}
+
+.dn-folder-search {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--dl-font-family);
+  font-size: 0.95em;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+  padding: 0.25rem 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.dn-folder-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 22rem;
+  overflow-y: auto;
+}
+.dn-folder-file {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.9em;
+  padding: 0.3rem 0.2rem;
+  cursor: pointer;
+  word-break: break-all;
+}
+.dn-folder-file:hover,
+.dn-folder-file:focus-visible {
+  color: var(--dl-orange);
+  outline: none;
+}
+.dn-folder-empty {
+  color: var(--dl-muted);
+  font-size: 0.9em;
+  padding: 0.3rem 0.2rem;
+}
+
+.dn-folder-create {
+  padding-top: 0.2rem;
+  border-top: 1px solid var(--dl-rule);
+}
+.dn-folder-create-heading {
+  margin: 0 0 0.4rem;
+  font-size: 0.78em;
+  font-family: var(--dl-mono);
+  color: var(--dl-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.dn-folder-create-field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.4rem;
+  font-family: var(--dl-font-family);
+  font-size: 0.9em;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+  padding: 0.25rem 0.4rem;
+}
+.dn-folder-create-button {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.9em;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+.dn-folder-create-button:hover:not(:disabled) {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+.dn-folder-create-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.dn-folder-create-status {
+  min-height: 1.2em;
+  margin: 0.4rem 0 0;
+  font-size: 0.85em;
+  color: var(--dl-muted);
+}
+
+/* ---------------------------------------------------------- link check */
+
+.dn-linkcheck-toggle {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--dl-cell-border);
+  background: var(--dl-panel-bg);
+  color: var(--dl-muted);
+  font-size: 0.95em;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.1s;
+}
+.dn-linkcheck-toggle:hover,
+.dn-linkcheck-toggle:focus-visible {
+  opacity: 1;
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+  outline: none;
+}
+
+.dn-linkcheck-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 11;
+  width: 20rem;
+  max-width: 90vw;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--dl-panel-bg);
+  border-left: 1px solid var(--dl-cell-border);
+  box-shadow: -4px 0 16px var(--dl-shadow);
+  padding: 1rem 1.25rem 2rem;
+  font-family: var(--dl-font-family);
+  font-size: 0.85em;
+  color: var(--dl-fg);
+}
+
+.dn-linkcheck-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.dn-linkcheck-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--dl-heading);
+}
+.dn-linkcheck-close {
+  border: none;
+  background: none;
+  color: var(--dl-muted);
+  font-size: 1.2em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+.dn-linkcheck-close:hover {
+  color: var(--dl-orange);
+}
+
+.dn-linkcheck-hint {
+  font-size: 0.85em;
+  color: var(--dl-muted);
+  margin: 0 0 0.75rem;
+}
+
+.dn-linkcheck-run {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.9em;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+.dn-linkcheck-run:hover {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+
+.dn-linkcheck-report {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  font-size: 0.85em;
+}
+.dn-linkcheck-report li {
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--dl-rule);
+  color: var(--dl-fg);
+}
+.dn-linkcheck-report-clean {
+  color: var(--dl-muted);
+}
+
+/* ----------------------------------------------------------- outline */
+
+.dn-source-toggle {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--dl-cell-border);
+  background: var(--dl-panel-bg);
+  color: var(--dl-muted);
+  font-size: 0.85em;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.1s;
+}
+.dn-source-toggle:hover,
+.dn-source-toggle:focus-visible {
+  opacity: 1;
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+  outline: none;
+}
+
+.dn-source-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: var(--dl-shadow);
+  align-items: center;
+  justify-content: center;
+  padding: 6vh 4vw;
+}
+.dn-source-overlay:not([hidden]) {
+  display: flex;
+}
+
+.dn-source-box {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 60rem;
+  height: 100%;
+  background: var(--dl-panel-bg);
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px var(--dl-shadow);
+  font-family: var(--dl-font-family);
+  overflow: hidden;
+}
+
+.dn-source-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--dl-rule);
+}
+.dn-source-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--dl-heading);
+}
+.dn-source-close {
+  border: none;
+  background: none;
+  color: var(--dl-muted);
+  font-size: 1.2em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+.dn-source-close:hover {
+  color: var(--dl-orange);
+}
+
+.dn-source-editor {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 0.9em;
+}
+.dn-source-editor .cm-editor {
+  height: 100%;
+}
+
+/* ------------------------------------------------------------- series */
+
+.dn-series-toggle {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--dl-cell-border);
+  background: var(--dl-panel-bg);
+  color: var(--dl-muted);
+  font-size: 1em;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.1s;
+}
+.dn-series-toggle[hidden] {
+  display: none !important;
+}
+.dn-series-toggle:hover,
+.dn-series-toggle:focus-visible {
+  opacity: 1;
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+  outline: none;
+}
+
+.dn-series-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 11;
+  width: 20rem;
+  max-width: 90vw;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--dl-panel-bg);
+  border-left: 1px solid var(--dl-cell-border);
+  box-shadow: -4px 0 16px var(--dl-shadow);
+  padding: 1rem 1.25rem 2rem;
+  font-family: var(--dl-font-family);
+  font-size: 0.85em;
+  color: var(--dl-fg);
+}
+
+.dn-series-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.dn-series-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--dl-heading);
+}
+.dn-series-close {
+  border: none;
+  background: none;
+  color: var(--dl-muted);
+  font-size: 1.2em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+.dn-series-close:hover {
+  color: var(--dl-orange);
+}
+
+.dn-series-empty {
+  color: var(--dl-muted);
+  font-size: 0.9em;
+}
+
+.dn-series-module {
+  margin-bottom: 1rem;
+}
+.dn-series-module-header,
+.dn-series-series-header {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.dn-series-module-title {
+  margin: 0 0 0.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.78em;
+  font-family: var(--dl-mono);
+  color: var(--dl-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-align: left;
+  cursor: pointer;
+  flex: 1;
+}
+
+.dn-series-block {
+  margin-bottom: 0.75rem;
+}
+.dn-series-series-title {
+  margin: 0 0 0.3rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.95em;
+  font-family: var(--dl-font-family);
+  color: var(--dl-heading);
+  text-align: left;
+  cursor: pointer;
+  flex: 1;
+}
+.dn-series-module-title:hover,
+.dn-series-series-title:hover {
+  color: var(--dl-orange);
+}
+.dn-series-order {
+  border: 0;
+  background: none;
+  color: var(--dl-muted);
+  cursor: pointer;
+  padding: 0.15rem 0.25rem;
+}
+.dn-series-order:hover:not(:disabled) {
+  color: var(--dl-orange);
+}
+.dn-series-order:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.dn-series-list {
+  margin: 0;
+  padding-left: 1.3rem;
+  font-size: 0.9em;
+}
+.dn-series-list li {
+  padding: 0.15rem 0;
+  color: var(--dl-fg);
+}
+.dn-series-link {
+  border: none;
+  background: none;
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 1em;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+.dn-series-link:hover,
+.dn-series-link:focus-visible {
+  color: var(--dl-orange);
+  text-decoration: underline;
+  outline: none;
+}
+
+/* A listed tutorial is a row of three: the grip that drags it, the title
+   that opens it, and the × that takes it off the module. The grip and
+   the × are quiet until the row is hovered or something in it has
+   keyboard focus — a rail of lists is easier to read without a column of
+   controls down each side of it — but never display:none, which would
+   put them out of reach of the keyboard entirely. */
+.dn-series-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+.dn-series-grip {
+  color: var(--dl-muted);
+  cursor: grab;
+  user-select: none;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.dn-series-item:hover .dn-series-grip,
+.dn-series-item:focus-within .dn-series-grip {
+  opacity: 0.7;
+}
+.dn-series-item.dn-series-dragging {
+  opacity: 0.45;
+}
+.dn-series-remove {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--dl-muted);
+  font-family: var(--dl-font-family);
+  font-size: 1.05em;
+  line-height: 1;
+  padding: 0 0.15rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.dn-series-item:hover .dn-series-remove,
+.dn-series-remove:focus-visible {
+  opacity: 1;
+}
+.dn-series-remove:hover,
+.dn-series-remove:focus-visible {
+  color: var(--dl-orange);
+  outline: none;
+}
+.dn-series-missing {
+  color: var(--dl-muted);
+  font-style: italic;
+}
+
+/* The whole list is the drop target, so the whole list is what lights
+   up — including an empty one, which is the only way to drop the first
+   tutorial into a series that has none yet. */
+.dn-series-list.dn-series-list-over {
+  outline: 1px dashed var(--dl-orange);
+  outline-offset: 2px;
+  border-radius: 3px;
+  min-height: 1.2em;
+}
+
+.dn-series-add {
+  margin: 0.2rem 0 0 1.3rem;
+}
+.dn-series-add-toggle {
+  border: none;
+  background: none;
+  color: var(--dl-muted);
+  font-family: var(--dl-font-family);
+  font-size: 0.85em;
+  padding: 0;
+  cursor: pointer;
+}
+.dn-series-add-toggle:hover,
+.dn-series-add-toggle:focus-visible {
+  color: var(--dl-orange);
+  outline: none;
+}
+.dn-series-add-search {
+  display: block;
+  width: 100%;
+  margin-top: 0.3rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.85em;
+  padding: 0.25rem 0.4rem;
+}
+.dn-series-add-list {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  max-height: 9rem;
+  overflow-y: auto;
+}
+.dn-series-add-item {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.85em;
+  text-align: left;
+  padding: 0.15rem 0;
+  cursor: pointer;
+}
+.dn-series-add-item:hover,
+.dn-series-add-item:focus-visible {
+  color: var(--dl-orange);
+  outline: none;
+}
+.dn-series-add-empty {
+  color: var(--dl-muted);
+  font-size: 0.85em;
+  padding: 0.15rem 0;
+}
+
+.dn-series-readonly,
+.dn-series-status {
+  color: var(--dl-muted);
+  font-size: 0.85em;
+}
+.dn-series-readonly {
+  margin: 0.2rem 0 0 1.3rem;
+}
+.dn-series-status {
+  min-height: 1.2em;
+  margin: 0.6rem 0 0;
+  border-top: 1px solid var(--dl-rule);
+  padding-top: 0.5rem;
+}
+
+.dn-outline-toggle {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--dl-cell-border);
+  background: var(--dl-panel-bg);
+  color: var(--dl-muted);
+  font-size: 1.05em;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.1s;
+}
+.dn-outline-toggle:hover,
+.dn-outline-toggle:focus-visible {
+  opacity: 1;
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+  outline: none;
+}
+
+.dn-outline-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 11;
+  width: 20rem;
+  max-width: 90vw;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--dl-panel-bg);
+  border-left: 1px solid var(--dl-cell-border);
+  box-shadow: -4px 0 16px var(--dl-shadow);
+  padding: 1rem 1.25rem 2rem;
+  font-family: var(--dl-font-family);
+  font-size: 0.85em;
+  color: var(--dl-fg);
+}
+
+.dn-outline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.dn-outline-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--dl-heading);
+}
+.dn-outline-close {
+  border: none;
+  background: none;
+  color: var(--dl-muted);
+  font-size: 1.2em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+.dn-outline-close:hover {
+  color: var(--dl-orange);
+}
+
+.dn-outline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.dn-outline-item button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.9em;
+  padding: 0.3rem 0.2rem;
+  cursor: pointer;
+  border-top: 1px solid var(--dl-rule);
+}
+.dn-outline-item button:hover,
+.dn-outline-item button:focus-visible {
+  color: var(--dl-orange);
+  outline: none;
+}
+.dn-outline-item-2 button {
+  padding-left: 0.9rem;
+}
+.dn-outline-item-3 button {
+  padding-left: 1.6rem;
+}
+.dn-outline-item-4 button {
+  padding-left: 2.3rem;
+}
+.dn-outline-item-5 button {
+  padding-left: 3rem;
+}
+.dn-outline-item-6 button {
+  padding-left: 3.7rem;
+}
+
+.dn-outline-empty {
+  color: var(--dl-muted);
+  font-size: 0.9em;
+  padding: 0.3rem 0.2rem;
+}
+
+/* ---------------------------------------------------------- settings */
+
+.dn-settings-toggle {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--dl-cell-border);
+  background: var(--dl-panel-bg);
+  color: var(--dl-muted);
+  font-size: 1.05em;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.1s;
+}
+.dn-settings-toggle:hover,
+.dn-settings-toggle:focus-visible {
+  opacity: 1;
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+  outline: none;
+}
+
+.dn-settings-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 11;
+  width: 18rem;
+  max-width: 90vw;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--dl-panel-bg);
+  border-left: 1px solid var(--dl-cell-border);
+  box-shadow: -4px 0 16px var(--dl-shadow);
+  padding: 1rem 1.25rem 2rem;
+  font-family: var(--dl-font-family);
+  font-size: 0.85em;
+  color: var(--dl-fg);
+}
+
+.dn-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.dn-settings-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--dl-heading);
+}
+.dn-settings-close {
+  border: none;
+  background: none;
+  color: var(--dl-muted);
+  font-size: 1.2em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+.dn-settings-close:hover {
+  color: var(--dl-orange);
+}
+
+.dn-settings-section {
+  border-top: 1px solid var(--dl-rule);
+  padding: 0.75rem 0;
+}
+.dn-settings-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.82em;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--dl-muted);
+}
+
+.dn-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+}
+.dn-settings-row span {
+  color: var(--dl-fg);
+}
+.dn-settings-row select,
+.dn-settings-row input[type="text"] {
+  font-family: var(--dl-font-family);
+  font-size: 0.95em;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+  padding: 0.2rem 0.4rem;
+}
+.dn-settings-row input[type="range"] {
+  width: 8rem;
+}
+.dn-settings-row input[type="text"] {
+  width: 8rem;
+}
+
+.dn-settings-restart,
+.dn-settings-reset {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.85em;
+  padding: 0.4rem;
+  cursor: pointer;
+}
+.dn-settings-restart:hover {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+.dn-settings-reset {
+  margin-top: 1rem;
+}
+.dn-settings-reset:hover {
+  color: var(--dl-error-fg);
+  border-color: var(--dl-error-fg);
+}
+
+/* ------------------------------------------------------- command palette */
+
+.dn-palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: var(--dl-shadow);
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+}
+.dn-palette-overlay:not([hidden]) {
+  display: flex;
+}
+
+.dn-palette-box {
+  width: 32rem;
+  max-width: 90vw;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: var(--dl-panel-bg);
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px var(--dl-shadow);
+  font-family: var(--dl-font-family);
+}
+
+.dn-palette-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-bottom: 1px solid var(--dl-rule);
+  background: none;
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 1.05em;
+  padding: 0.75rem 1rem;
+}
+.dn-palette-input:focus {
+  outline: none;
+}
+
+.dn-palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem 0;
+}
+.dn-palette-item button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.95em;
+  padding: 0.45rem 1rem;
+  cursor: pointer;
+}
+.dn-palette-item.is-active button {
+  background: var(--dl-rule);
+  color: var(--dl-orange);
+}
+
+/* ------------------------------------------------------------- link picker */
+
+.dn-link-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: var(--dl-shadow);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+}
+
+.dn-link-box {
+  width: 28rem;
+  max-width: 90vw;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--dl-panel-bg);
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px var(--dl-shadow);
+  font-family: var(--dl-font-family);
+  padding: 0.75rem 1rem 1rem;
+}
+
+.dn-link-search {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-bottom: 1px solid var(--dl-rule);
+  background: none;
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 1em;
+  padding: 0.4rem 0.2rem;
+}
+.dn-link-search:focus {
+  outline: none;
+}
+
+.dn-link-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.2rem 0;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+.dn-link-item button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.9em;
+  padding: 0.4rem 0.2rem;
+  cursor: pointer;
+}
+.dn-link-item button:hover {
+  color: var(--dl-orange);
+}
+/* A module: or series: item's own badge (decision 33) — never on a
+   tutorial, the common case, whose own title already reads as a
+   document rather than a category. */
+.dn-link-item-kind {
+  display: inline-block;
+  margin-right: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 999px;
+  color: var(--dl-muted);
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.dn-link-empty {
+  color: var(--dl-muted);
+  font-size: 0.85em;
+  padding: 0.3rem 0.2rem;
+}
+
+.dn-link-hint {
+  font-size: 0.8em;
+  color: var(--dl-muted);
+  margin: 0.5rem 0 0.4rem;
+  border-top: 1px solid var(--dl-rule);
+  padding-top: 0.5rem;
+}
+
+.dn-link-custom-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+.dn-link-custom-row input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--dl-font-family);
+  font-size: 0.9em;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-bg);
+  color: var(--dl-fg);
+  padding: 0.3rem 0.4rem;
+}
+
+.dn-link-insert {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.9em;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+.dn-link-insert:hover {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+
+/* -------------------------------------------------------------- site cells */
+
+.dn-site-pane-label {
+  color: var(--dl-muted);
+  font-family: var(--dl-mono);
+  font-size: 0.78em;
+  margin-bottom: 0.2rem;
+}
+
+.dn-site-preview {
+  margin-top: 0.4rem;
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.dn-site-preview-header {
+  padding: 0.3rem 0.6rem;
+  background: var(--dn-cell-bg);
+  color: var(--dl-muted);
+  font-family: var(--dl-mono);
+  font-size: 0.78em;
+  border-bottom: 1px solid var(--dl-cell-border);
+}
+
+.dn-site-run-bar {
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--dl-cell-border);
+}
+.dn-site-run {
+  border: 1px solid var(--dl-cell-border);
+  border-radius: 4px;
+  background: var(--dl-panel-bg);
+  color: var(--dl-fg);
+  font-family: var(--dl-font-family);
+  font-size: 0.85em;
+  padding: 0.2rem 0.7rem;
+  cursor: pointer;
+}
+.dn-site-run:hover {
+  color: var(--dl-orange);
+  border-color: var(--dl-orange);
+}
+
+.dn-site-frame-host {
+  height: 16rem;
+}
+.dn-site-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
+}
+
+.dn-site-console {
+  font-family: var(--dl-mono);
+  font-size: 0.78em;
+  max-height: 6rem;
+  overflow-y: auto;
+}
+.dn-site-console:empty {
+  display: none;
+}
+.dn-site-console-line {
+  padding: 0.2rem 0.6rem;
+  border-top: 1px solid var(--dl-rule);
+  white-space: pre-wrap;
+}
+.dn-site-console-error {
+  color: var(--dl-error-fg);
+}
+.dn-site-console-warn {
+  color: var(--dl-orange);
+}
+
+/* An image the markdown names by bare file name, resolved through the
+   open store (asset-preview.ts). It carries no `src` until the bytes
+   come back, so the box is sized here rather than by the picture — and
+   one whose file isn't there keeps none, which is what makes the browser
+   render its alt text in place of the picture. */
+.dn-block-render img[data-dn-asset] {
+  max-width: 100%;
+}
+.dn-block-render img.dn-image-missing {
+  display: inline-block;
+  min-width: 8rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px dashed var(--dl-cell-border);
+  border-radius: 4px;
+  color: var(--dl-muted);
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+/* Everything else a finger has to hit. The rail, the block controls and
+   the menus are sized where they're defined; these are the controls that
+   live in the document itself — a cell's Run/Stop and its header's
+   optional-field adds — plus the two file-bar buttons a writer uses
+   constantly. Measured at 19-26px before this, against 44 on iOS and 48
+   on Android. `min-height` rather than `height` so a button that wraps
+   its label still grows rather than clipping it. */
+@media (hover: none) {
+  .dn-file-open,
+  .dn-file-save,
+  .dn-cell-run,
+  .dn-cell-stop {
+    min-height: 2.75rem;
+    padding-inline: 0.9rem;
+  }
+  .dn-cell-header-add {
+    min-height: 2.75rem;
+    padding-inline: 0.7rem;
+  }
+}

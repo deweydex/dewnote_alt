@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Dewnote</title>
+  <desc id="desc">An orange dew drop shaped like a fountain pen nib on a navy rounded square.</desc>
+  <rect width="512" height="512" rx="104" fill="#1b2a4a"/>
+  <path fill="#d4692a" d="M256 76c-67 68-111 132-111 210 0 65 41 111 88 132l23 31 23-31c47-21 88-67 88-132 0-78-44-142-111-210Z"/>
+  <circle cx="256" cy="256" r="22" fill="#1b2a4a"/>
+  <path d="M256 278v126" stroke="#1b2a4a" stroke-width="18" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <style>
+    .field { fill: #1b2a4a; }
+    .mark { fill: #d4692a; }
+    .cut { fill: #1b2a4a; stroke: #1b2a4a; }
+    @media (prefers-color-scheme: dark) {
+      .field { fill: #d4692a; }
+      .mark { fill: #1b2a4a; }
+      .cut { fill: #d4692a; stroke: #d4692a; }
+    }
+  </style>
+  <rect class="field" width="512" height="512" rx="104"/>
+  <path class="mark" d="M256 76c-67 68-111 132-111 210 0 65 41 111 88 132l23 31 23-31c47-21 88-67 88-132 0-78-44-142-111-210Z"/>
+  <circle class="cut" cx="256" cy="256" r="22" stroke="none"/>
+  <path class="cut" d="M256 278v126" fill="none" stroke-width="18" stroke-linecap="round"/>
+</svg>
